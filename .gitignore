@@ -1,0 +1,10 @@
+
+.vs/
+Build/
+Deploy/
+
+*.db
+*.opendb
+*.psess
+*.vspx
+*~$*.*
