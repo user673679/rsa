@@ -1,0 +1,2 @@
+
+Public domain. No warranty.

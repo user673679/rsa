@@ -27,45 +27,273 @@ namespace rsa
 
 	namespace math
 	{
-		
-		//class big_number
-		//{
-		//	using limb_t = std::uint32_t;
-		//	using data_t = std::vector<limb_t>;
 
-		//	constexpr auto limb_digits = std::numeric_limits<limb_t>::digits;
-		//	constexpr auto limb_max = std::numeric_limits<limb_t>::max();
+		namespace meta
+		{
 
-		//	data_t m_data;
+			template<class uint_t>
+			constexpr bool is_uint_v = (std::is_integral_v<uint_t> && std::is_unsigned_v<uint_t>);
 
-		//public:
+			template<class uint_t>
+			using enable_if_uint_t = std::enable_if_t<is_uint_v<uint_t>>;
 
-		//	big_number() = default;
+		} // meta
 
-		//	template<class numeric_t, typename = std::enable_if_t<std::is_unsigned_v<numeric_t> && std::is_integral_v<numeric_t>>>
-		//	explicit big_number(numeric_t n)
-		//	{
-		//		// ...
-		//	}
+		template<class block_t>
+		class big_uint
+		{
+		public:
 
-		//	big_number(big_number const&) = default;
-		//	big_number& operator=(big_number const&) = default;
+			using block_type = block_t;
+			using data_type = std::vector<block_type>;
 
-		//	big_number(big_number&&) = default;
-		//	big_number& operator=(big_number&&) = default;
+			static constexpr auto block_digits = std::numeric_limits<block_type>::digits;
+			static constexpr auto block_max = std::numeric_limits<block_type>::max();
 
+#pragma region constructors
 
+			big_uint();
 
-		//	// get, set, flip
+			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+			explicit big_uint(uint_t n);
 
-		//	std::size_t size() const; // returns number of bits
+			// ... string constructor
 
-		//	// math operators
+			big_uint(big_uint const&) = default;
+			big_uint(big_uint&&) = default;
 
-		//	// limb stuff?
-		//};
+#pragma endregion
 
+#pragma region assignment
 
+			big_uint& operator=(big_uint const&) = default;
+			big_uint& operator=(big_uint&&) = default;
+
+			// ... assign from value
+
+#pragma endregion
+
+#pragma region general
+
+			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+			uint_t to_uint() const;
+
+			// ... to_string()
+
+			data_type& data();
+			data_type const& data() const;
+
+#pragma endregion
+
+#pragma region math operators
+
+			big_uint& operator+=(big_uint const& b);
+
+			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+			big_uint& operator+=(uint_t n);
+
+#pragma endregion
+
+		private:
+
+			data_type m_data;
+		};
+
+		using big_uint_8 = big_uint<std::uint8_t>;
+		using big_uint_16 = big_uint<std::uint16_t>;
+		using big_uint_32 = big_uint<std::uint32_t>;
+		using big_uint_64 = big_uint<std::uint64_t>;
+
+#pragma region construct
+
+		template<class block_t>
+		big_uint<block_t>::big_uint():
+			big_uint(0u)
+		{
+
+		}
+
+		template<class block_t>
+		template<class uint_t, typename>
+		big_uint<block_t>::big_uint(uint_t n)
+		{
+			// shifting by >= the number digits in the type is undefined behaviour.
+			constexpr auto can_rshift = (block_digits < std::numeric_limits<uint_t>::digits);
+
+			while (n != uint_t{ 0 })
+			{
+				// integer promotion, conversion to greater rank, implicit conversion to block_type (yikes)
+				m_data.push_back(block_max & n);
+
+				if (can_rshift)
+					n >>= block_digits;
+				else
+					n = uint_t{ 0 };
+			}
+		}
+
+#pragma endregion
+
+#pragma region general
+
+		template<class block_t>
+		template<class uint_t, typename>
+		uint_t big_uint<block_t>::to_uint() const
+		{
+			// it's much easier to static_assert / throw here if uint_t may be too small.
+			// checking the actual value would be a lot more work.
+			{
+				constexpr auto uint_digits = std::numeric_limits<uint_t>::digits;
+
+				static_assert(block_digits <= uint_digits, "uint_t may be too small to represent this number.");
+
+				if (m_data.size() * block_digits > uint_digits)
+					throw std::range_error("uint_t may be too small to represent this number.");
+			}
+
+			auto result = uint_t{ 0 };
+
+			if (m_data.empty())
+				return result;
+
+			for (auto i = std::size_t{ 0 }; i != m_data.size(); ++i)
+				result |= (uint_t{ m_data[i] } << (i * block_digits));
+
+			return result;
+		}
+
+		template<class block_t>
+		typename big_uint<block_t>::data_type& big_uint<block_t>::data()
+		{
+			return m_data;
+		}
+
+		template<class block_t>
+		typename big_uint<block_t>::data_type const& big_uint<block_t>::data() const
+		{
+			return m_data;
+		}
+
+#pragma endregion
+
+#pragma region math operators
+
+		template<class block_t>
+		big_uint<block_t>& big_uint<block_t>::operator+=(big_uint const& b)
+		{
+			const auto get_block_or = [] (data_type const& data, std::size_t i, block_type value) -> block_type const&
+			{
+				return (i < data.size()) ? data[i] : value;
+			};
+
+			const auto get_block_or_extend = [] (data_type& data, std::size_t i, block_type value) -> block_type&
+			{
+				if (i == data.size())
+					data.push_back(value);
+
+				return data[i];
+			};
+
+			const auto checked_addassign = [] (block_type& a, block_type b)
+			{
+				return ((a += b) < b);
+			};
+
+			auto& a = *this;
+			const auto max_size = std::max(a.data().size(), b.data().size());
+
+			auto carry = false;
+
+			// add corresponding blocks. in case of overflow, carry one to the next block.
+			for (auto i = std::size_t{ 0 }; i != max_size; ++i)
+			{
+				auto const& b_block = get_block_or(b.data(), i, block_type{ 0 });
+				auto& a_block = get_block_or_extend(a.data(), i, block_type{ 0 });
+
+				carry = (checked_addassign(a_block, b_block) | checked_addassign(a_block, carry ? block_type{ 1 } : block_type{ 0 })); // bitwise or doesn't short-circuit!
+			}
+
+			if (carry)
+				a.data().push_back(block_type{ 1 });
+
+			return a;
+		}
+
+		template<class block_t>
+		template<class uint_t, typename>
+		big_uint<block_t>& big_uint<block_t>::operator+=(uint_t n)
+		{
+			return operator+=(big_uint(n));
+		}
+
+#pragma endregion
+
+#pragma region comparison
+
+		template<class block_t>
+		bool operator==(big_uint<block_t> const& a, big_uint<block_t> const& b)
+		{
+			if (a.data().size() != b.data().size())
+				return false;
+
+			return std::equal(a.data().begin(), a.data().end(), b.data().begin());
+		}
+
+		template<class block_t, class uint_t, typename = meta::enable_if_uint<uint_t>>
+		bool operator==(big_uint<block_t> const& a, uint_t b)
+		{
+			return (a == big_uint<block_t>(b));
+		}
+
+		template<class block_t, class uint_t, typename = meta::enable_if_uint<uint_t>>
+		bool operator==(uint_t a, big_uint<block_t> const& b)
+		{
+			return (big_uint<block_t>(a) == b);
+		}
+
+		template<class block_t>
+		bool operator!=(big_uint<block_t> const& a, big_uint<block_t> const& b)
+		{
+			return !(a == b);
+		}
+
+		template<class block_t, class uint_t, typename = meta::enable_if_uint<uint_t>>
+		bool operator!=(big_uint<block_t> const& a, uint_t b)
+		{
+			return (a != big_uint<block_t>(b));
+		}
+
+		template<class block_t, class uint_t, typename = meta::enable_if_uint<uint_t>>
+		bool operator!=(uint_t a, big_uint<block_t> const& b)
+		{
+			return (big_uint<block_t>(a) != b);
+		}
+
+#pragma endregion
+
+#pragma region math operators
+
+		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		big_uint<block_t> operator+(big_uint<block_t> a, uint_t b)
+		{
+			return (a += big_uint<block_t>(b));
+		}
+
+		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		big_uint<block_t> operator+(uint_t a, big_uint<block_t> b)
+		{
+			return (b += big_uint<block_t>(a));
+		}
+
+		template<class block_t>
+		big_uint<block_t> operator+(big_uint<block_t> a, big_uint<block_t> const& b)
+		{
+			return (a += b);
+		}
+
+#pragma endregion
+
+#pragma region math - old
 
 		std::vector<bool> to_bits(std::uint64_t n)
 		{
@@ -270,6 +498,8 @@ namespace rsa
 			return bits_sub(a, bits_mul(bits_div(a, b), b));
 		}
 
+#pragma endregion
+
 		bool is_prime(std::uint64_t n)
 		{
 			if (n % 2 == 0)
@@ -376,6 +606,16 @@ namespace rsa
 		return{ };
 	}
 
+	math::big_uint_32 bn_generate_random_bits(std::mt19937_64& , std::size_t )
+	{
+		auto result = math::big_uint_32();
+
+		// ...
+
+
+		return result;
+	}
+
 } // rsa
 
 
@@ -387,579 +627,691 @@ namespace rsa
 namespace test
 {
 
-	TEST(Test_RSA, math_to_bits__GivesCorrectNumberOfBits)
+#pragma region old
+
+	//TEST(Test_RSA, math_to_bits__GivesCorrectNumberOfBits)
+	//{
+	//	EXPECT_EQ(rsa::math::to_bits(0).size(), 0u);
+	//	EXPECT_EQ(rsa::math::to_bits(1).size(), 1u);
+	//	EXPECT_EQ(rsa::math::to_bits(std::numeric_limits<std::uint64_t>::max()).size(), std::numeric_limits<std::uint64_t>::digits);
+	//	EXPECT_EQ(rsa::math::to_bits(std::numeric_limits<std::uint64_t>::max() - 1u).size(), std::numeric_limits<std::uint64_t>::digits);
+	//}
+
+	//TEST(Test_RSA, math_to_bits__GivesCorrectBitPattern)
+	//{
+	//	{
+	//		auto one = std::vector<bool>(1, true);
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::to_bits(1), one));
+	//	}
+	//	{
+	//		auto max = std::vector<bool>(std::numeric_limits<std::uint64_t>::digits, true);
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::to_bits(std::numeric_limits<std::uint64_t>::max()), max));
+	//	}
+	//	{
+	//		auto max_sub_one = std::vector<bool>(std::numeric_limits<std::uint64_t>::digits, true);
+	//		max_sub_one[0] = false;
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::to_bits(std::numeric_limits<std::uint64_t>::max() - 1), max_sub_one));
+	//	}
+	//}
+
+	//TEST(Test_RSA, math_to_number__ThrowsWithIncorrectNumberOfBits)
+	//{
+	//	EXPECT_THROW(rsa::math::to_number(std::vector<bool>(65, false)), std::invalid_argument);
+	//}
+
+	//TEST(Test_RSA, math_to_number__GivesCorrectValue)
+	//{
+	//	auto digits = std::numeric_limits<std::uint64_t>::digits;
+	//	{
+	//		auto one = std::vector<bool>(digits, false);
+	//		one[0] = true;
+	//		EXPECT_EQ(rsa::math::to_number(one), 1);
+	//	}
+	//	{
+	//		auto max = std::vector<bool>(digits, true);
+	//		EXPECT_EQ(rsa::math::to_number(max), std::numeric_limits<std::uint64_t>::max());
+	//	}
+	//	{
+	//		auto max_sub_one = std::vector<bool>(digits, true);
+	//		max_sub_one[0] = false;
+	//		EXPECT_EQ(rsa::math::to_number(max_sub_one), std::numeric_limits<std::uint64_t>::max() - 1);
+	//	}
+	//}
+
+	//TEST(Test_RSA, math_bits_at__ReturnsBitAtValidIndex)
+	//{
+	//	auto bits = std::vector<bool>(5, false);
+	//	bits[0] = true;
+	//	bits[4] = true;
+
+	//	for (auto i = std::size_t{ 0 }; i != bits.size(); ++i)
+	//		EXPECT_EQ(rsa::math::bits_at(bits, i), bits[i]);
+	//}
+
+	//TEST(Test_RSA, math_bits_at__ReturnsFalseAtInvalidIndex)
+	//{
+	//	auto bits = std::vector<bool>(5, true);
+	//	EXPECT_EQ(rsa::math::bits_at(bits, bits.size()), false);
+	//	EXPECT_EQ(rsa::math::bits_at(bits, std::numeric_limits<std::size_t>::max()), false);
+	//}
+
+	//TEST(Test_RSA, math_bits_equal__IsCorrect)
+	//{
+	//	{
+	//		auto a = std::vector<bool>(5, false);
+	//		auto b = std::vector<bool>();
+	//		auto c = std::vector<bool>(1, false);
+	//		EXPECT_TRUE(rsa::math::bits_equal(a, b));
+	//		EXPECT_TRUE(rsa::math::bits_equal(b, a));
+	//		EXPECT_TRUE(rsa::math::bits_equal(a, c));
+	//		EXPECT_TRUE(rsa::math::bits_equal(c, a));
+	//		EXPECT_TRUE(rsa::math::bits_equal(c, b));
+	//		EXPECT_TRUE(rsa::math::bits_equal(b, c));
+	//	}
+	//	{
+	//		auto a = std::vector<bool>(5, true);
+	//		auto b = std::vector<bool>();
+	//		auto c = std::vector<bool>(1, true);
+	//		EXPECT_FALSE(rsa::math::bits_equal(a, b));
+	//		EXPECT_FALSE(rsa::math::bits_equal(b, a));
+	//		EXPECT_FALSE(rsa::math::bits_equal(a, c));
+	//		EXPECT_FALSE(rsa::math::bits_equal(c, a));
+	//		EXPECT_FALSE(rsa::math::bits_equal(c, b));
+	//		EXPECT_FALSE(rsa::math::bits_equal(b, c));
+	//	}
+	//	{
+	//		auto a = std::vector<bool>{ true, false, true, false, false };
+	//		auto b = std::vector<bool>{ true, false, true };
+	//		EXPECT_TRUE(rsa::math::bits_equal(a, b));
+	//		EXPECT_TRUE(rsa::math::bits_equal(b, a));
+	//	}
+	//}
+
+	//TEST(Test_RSA, math_bits_greater)
+	//{
+	//	{
+	//		auto a = std::vector<bool>(5, false);
+	//		auto b = std::vector<bool>();
+	//		auto c = std::vector<bool>(1, false);
+	//		EXPECT_FALSE(rsa::math::bits_greater(a, b));
+	//		EXPECT_FALSE(rsa::math::bits_greater(b, a));
+	//		EXPECT_FALSE(rsa::math::bits_greater(a, c));
+	//		EXPECT_FALSE(rsa::math::bits_greater(c, a));
+	//		EXPECT_FALSE(rsa::math::bits_greater(c, b));
+	//		EXPECT_FALSE(rsa::math::bits_greater(b, c));
+	//	}
+	//	{
+	//		auto a = std::vector<bool>{ true };
+	//		EXPECT_FALSE(rsa::math::bits_greater(a, a));
+	//	}
+	//	{
+	//		auto a = std::vector<bool>{ true, true };
+	//		auto b = std::vector<bool>{ true, false };
+	//		EXPECT_TRUE(rsa::math::bits_greater(a, b));
+	//		EXPECT_FALSE(rsa::math::bits_greater(b, a));
+	//	}
+	//}
+
+	//TEST(Test_RSA, math_bits_not_and__IsCorrect)
+	//{
+	//	{
+	//		auto a = std::vector<bool>{ };
+	//		auto b = std::vector<bool>{ };
+	//		EXPECT_EQ(rsa::math::bits_not_and(a, b), std::vector<bool>{ });
+	//	}
+	//	{
+	//		auto a = std::vector<bool>{ false };
+	//		auto b = std::vector<bool>{ false };
+	//		EXPECT_EQ(rsa::math::bits_not_and(a, b), std::vector<bool>{ false });
+	//	}
+	//	{
+	//		auto a = std::vector<bool>{ true };
+	//		auto b = std::vector<bool>{ false };
+	//		EXPECT_EQ(rsa::math::bits_not_and(a, b), std::vector<bool>{ false });
+	//	}
+	//	{
+	//		auto a = std::vector<bool>{ true };
+	//		auto b = std::vector<bool>{ true };
+	//		EXPECT_EQ(rsa::math::bits_not_and(a, b), std::vector<bool>{ false });
+	//	}
+	//	{
+	//		auto a = std::vector<bool>{ false };
+	//		auto b = std::vector<bool>{ true };
+	//		EXPECT_EQ(rsa::math::bits_not_and(a, b), std::vector<bool>{ true });
+	//	}
+	//}
+
+	//TEST(Test_RSA, math_bits_and__IsCorrect)
+	//{
+	//	{
+	//		auto a = std::vector<bool>{ false, false };
+	//		auto b = std::vector<bool>{ false, false };
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_and(a, b), std::vector<bool>{}));
+	//	}
+	//	{
+	//		auto a = std::vector<bool>{ true, false };
+	//		auto b = std::vector<bool>{ false, false };
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_and(a, b), std::vector<bool>{ }));
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_and(b, a), std::vector<bool>{ }));
+	//	}
+	//	{
+	//		auto a = std::vector<bool>{ true, false };
+	//		auto b = std::vector<bool>{ true, false };
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_and(a, b), std::vector<bool>{ true }));
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_and(b, a), std::vector<bool>{ true }));
+	//	}
+	//	{
+	//		auto a = std::vector<bool>{ true, true };
+	//		auto b = std::vector<bool>{ true, false };
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_and(a, b), std::vector<bool>{ true }));
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_and(b, a), std::vector<bool>{ true }));
+	//	}
+	//	{
+	//		auto a = std::vector<bool>{ true, true };
+	//		auto b = std::vector<bool>{ true, true };
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_and(a, b), std::vector<bool>{ true, true }));
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_and(b, a), std::vector<bool>{ true, true }));
+	//	}
+	//}
+
+	//TEST(Test_RSA, math_bits_or__IsCorrect)
+	//{
+	//	{
+	//		auto a = std::vector<bool>{ false, false };
+	//		auto b = std::vector<bool>{ false, false };
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_or(a, b), std::vector<bool>{}));
+	//	}
+	//	{
+	//		auto a = std::vector<bool>{ true, false };
+	//		auto b = std::vector<bool>{ false, false };
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_or(a, b), std::vector<bool>{ true }));
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_or(b, a), std::vector<bool>{ true }));
+	//	}
+	//	{
+	//		auto a = std::vector<bool>{ true, false };
+	//		auto b = std::vector<bool>{ true, false };
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_or(a, b), std::vector<bool>{ true }));
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_or(b, a), std::vector<bool>{ true }));
+	//	}
+	//	{
+	//		auto a = std::vector<bool>{ true, true };
+	//		auto b = std::vector<bool>{ true, false };
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_or(a, b), std::vector<bool>{ true, true }));
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_or(b, a), std::vector<bool>{ true, true }));
+	//	}
+	//	{
+	//		auto a = std::vector<bool>{ true, true };
+	//		auto b = std::vector<bool>{ true, true };
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_or(a, b), std::vector<bool>{ true, true }));
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_or(b, a), std::vector<bool>{ true, true }));
+	//	}
+	//}
+
+	//TEST(Test_RSA, math_bits_xor__IsCorrect)
+	//{
+	//	{
+	//		auto a = std::vector<bool>{ false, false };
+	//		auto b = std::vector<bool>{ false, false };
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_xor(a, b), std::vector<bool>{}));
+	//	}
+	//	{
+	//		auto a = std::vector<bool>{ true, false };
+	//		auto b = std::vector<bool>{ false, false };
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_xor(a, b), std::vector<bool>{ true }));
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_xor(b, a), std::vector<bool>{ true }));
+	//	}
+	//	{
+	//		auto a = std::vector<bool>{ true, false };
+	//		auto b = std::vector<bool>{ true, false };
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_xor(a, b), std::vector<bool>{ }));
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_xor(b, a), std::vector<bool>{ }));
+	//	}
+	//	{
+	//		auto a = std::vector<bool>{ true, true };
+	//		auto b = std::vector<bool>{ true, false };
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_xor(a, b), std::vector<bool>{ false, true }));
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_xor(b, a), std::vector<bool>{ false, true }));
+	//	}
+	//	{
+	//		auto a = std::vector<bool>{ true, true };
+	//		auto b = std::vector<bool>{ true, true };
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_xor(a, b), std::vector<bool>{ }));
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_xor(b, a), std::vector<bool>{ }));
+	//	}
+	//}
+
+	//TEST(Test_RSA, math_bits_lshift__IsCorrect)
+	//{
+	//	{
+	//		auto a = std::vector<bool>{ };
+	//		EXPECT_EQ(rsa::math::bits_lshift(a, 0), a);
+	//	}
+	//	{
+	//		auto a = std::vector<bool>{ };
+	//		EXPECT_EQ(rsa::math::bits_lshift(a, 1), (std::vector<bool>{ false }));
+	//	}
+	//	{
+	//		auto a = std::vector<bool>{ false };
+	//		EXPECT_EQ(rsa::math::bits_lshift(a, 1), (std::vector<bool>{ false, false }));
+	//	}
+	//	{
+	//		auto a = std::vector<bool>{ true };
+	//		EXPECT_EQ(rsa::math::bits_lshift(a, 1), (std::vector<bool>{ false, true }));
+	//	}
+	//}
+
+	//TEST(Test_RSA, math_bits_rshift__IsCorrect)
+	//{
+	//	{
+	//		auto a = std::vector<bool>{ };
+	//		EXPECT_EQ(rsa::math::bits_rshift(a, 0), a);
+	//	}
+	//	{
+	//		auto a = std::vector<bool>{ };
+	//		EXPECT_EQ(rsa::math::bits_rshift(a, 1), a);
+	//	}
+	//	{
+	//		auto a = std::vector<bool>(4, true);
+	//		EXPECT_EQ(rsa::math::bits_rshift(a, 5), std::vector<bool>{ });
+	//	}
+	//	{
+	//		auto a = std::vector<bool>{ true };
+	//		EXPECT_EQ(rsa::math::bits_rshift(a, 1), std::vector<bool>{ });
+	//	}
+	//	{
+	//		auto a = std::vector<bool>(4, true);
+	//		EXPECT_EQ(rsa::math::bits_rshift(a, 2), std::vector<bool>(2, true));
+	//	}
+	//}
+
+	//TEST(Test_RSA, math_bits_add__IsCorrect)
+	//{
+	//	{
+	//		auto a = rsa::math::to_bits(0);
+	//		auto b = rsa::math::to_bits(0);
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_add(a, b), rsa::math::to_bits(0)));
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_add(b, a), rsa::math::to_bits(0)));
+	//	}
+	//	{
+	//		auto a = rsa::math::to_bits(1);
+	//		auto b = rsa::math::to_bits(0);
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_add(a, b), rsa::math::to_bits(1)));
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_add(b, a), rsa::math::to_bits(1)));
+	//	}
+	//	{
+	//		auto a = rsa::math::to_bits(1);
+	//		auto b = rsa::math::to_bits(1);
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_add(a, b), rsa::math::to_bits(2)));
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_add(b, a), rsa::math::to_bits(2)));
+	//	}
+	//	{
+	//		auto a = rsa::math::to_bits(273);
+	//		auto b = rsa::math::to_bits(54);
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_add(a, b), rsa::math::to_bits(273 + 54)));
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_add(b, a), rsa::math::to_bits(273 + 54)));
+	//	}
+	//	{
+	//		auto a = rsa::math::to_bits(2734756);
+	//		auto b = rsa::math::to_bits(939876523);
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_add(a, b), rsa::math::to_bits(2734756 + 939876523)));
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_add(b, a), rsa::math::to_bits(2734756 + 939876523)));
+	//	}
+	//}
+
+	//TEST(Test_RSA, math_bits_sub__WorksWithValidParameters)
+	//{
+	//	{
+	//		auto zero = std::vector<bool>{ };
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_sub(zero, zero), zero));
+	//	}
+	//	{
+	//		auto one = std::vector<bool>{ true };
+	//		auto zero = std::vector<bool>{ };
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_sub(zero, zero), zero));
+	//	}
+	//	{
+	//		auto big = rsa::math::to_bits(53);
+	//		auto smol = rsa::math::to_bits(12);
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_sub(big, smol), rsa::math::to_bits(53 - 12)));
+	//	}
+	//	{
+	//		auto big = rsa::math::to_bits(532387);
+	//		auto smol = rsa::math::to_bits(5323);
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_sub(big, smol), rsa::math::to_bits(532387 - 5323)));
+	//	}
+	//	{
+	//		auto max = rsa::math::to_bits(std::numeric_limits<std::uint64_t>::max());
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_sub(max, max), std::vector<bool>{ }));
+	//	}
+	//}
+
+	//TEST(Test_RSA, math_bits_sub__ThrowsWithInvalidParameters)
+	//{
+	//	{
+	//		auto zero = std::vector<bool>{ };
+	//		auto one = std::vector<bool>{ true };
+	//		EXPECT_THROW(rsa::math::bits_sub(zero, one), std::invalid_argument);
+	//	}
+	//	{
+	//		auto a = std::vector<bool>{ true, true };
+	//		auto b = std::vector<bool>{ true, false, true };
+	//		EXPECT_THROW(rsa::math::bits_sub(a, b), std::invalid_argument);
+	//	}
+	//}
+
+	//TEST(Test_RSA, math_bits_mul__IsCorrect)
+	//{
+	//	{
+	//		auto zero = std::vector<bool>{ };
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_mul(zero, zero), zero));
+	//	}
+	//	{
+	//		auto zero = std::vector<bool>{ };
+	//		auto one = std::vector<bool>{ true };
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_mul(zero, one), zero));
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_mul(one, zero), zero));
+	//	}
+	//	{
+	//		auto a = rsa::math::to_bits(53u);
+	//		auto r = rsa::math::to_bits(53u * 53u);
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_mul(a, a), r));
+	//	}
+	//	{
+	//		auto a = rsa::math::to_bits(923u);
+	//		auto b = rsa::math::to_bits(1u);
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_mul(a, b), a));
+	//	}
+	//}
+
+	//TEST(Test_RSA, math_bits_div__DivisionByZeroThrows)
+	//{
+	//	{
+	//		auto zero = std::vector<bool>{ };
+	//		EXPECT_THROW(rsa::math::bits_div(zero, zero), std::invalid_argument);
+	//	}
+	//	{
+	//		auto one = std::vector<bool>{ true };
+	//		auto zero = std::vector<bool>{ };
+	//		EXPECT_THROW(rsa::math::bits_div(one, zero), std::invalid_argument);
+	//	}
+	//}
+
+	//TEST(Test_RSA, math_bits_div__WorksWithValidParameters)
+	//{
+	//	{
+	//		auto zero = std::vector<bool>{ };
+	//		auto one = std::vector<bool>{ true };
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_div(zero, one), zero));
+	//	}
+	//	{
+	//		auto zero = std::vector<bool>{ };
+	//		auto num = rsa::math::to_bits(1234u);
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_div(zero, num), zero));
+	//	}
+	//	{
+	//		auto one = std::vector<bool>{ true };
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_div(one, one), one));
+	//	}
+	//	{
+	//		auto num = rsa::math::to_bits(1234u);
+	//		auto one = std::vector<bool>{ true };
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_div(num, num), one));
+	//	}
+	//	{
+	//		auto max = rsa::math::to_bits(4u);
+	//		auto two = rsa::math::to_bits(2u);
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_div(max, two), two));
+	//	}
+	//	{
+	//		auto max = rsa::math::to_bits(5u);
+	//		auto two = rsa::math::to_bits(2u);
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_div(max, two), two));
+	//	}
+	//	{
+	//		auto max = rsa::math::to_bits(3u);
+	//		auto two = rsa::math::to_bits(2u);
+	//		auto one = rsa::math::to_bits(1u);
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_div(max, two), one));
+	//	}
+	//}
+
+	//TEST(Test_RSA, math_bits_mod__ModulusZeroThrows)
+	//{
+	//	{
+	//		auto zero = std::vector<bool>{ };
+	//		EXPECT_THROW(rsa::math::bits_mod(zero, zero), std::invalid_argument);
+	//	}
+	//	{
+	//		auto one = std::vector<bool>{ true };
+	//		auto zero = std::vector<bool>{ };
+	//		EXPECT_THROW(rsa::math::bits_mod(one, zero), std::invalid_argument);
+	//	}
+	//}
+
+	//TEST(Test_RSA, math_bits_mod__IsCorrect)
+	//{
+	//	{
+	//		auto zero = std::vector<bool>{ };
+	//		auto one = std::vector<bool>{ true };
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_mod(zero, one), zero));
+	//	}
+
+	//	{
+	//		auto one = std::vector<bool>{ true };
+	//		auto zero = std::vector<bool>{ };
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_mod(one, one), zero));
+	//	}
+	//	{
+	//		auto two = std::vector<bool>{ false, true };
+	//		auto one = std::vector<bool>{ true };
+	//		auto zero = std::vector<bool>{ };
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_mod(two, one), zero));
+	//	}
+	//	{
+	//		auto three = std::vector<bool>{ true, true };
+	//		auto two = std::vector<bool>{ false, true };
+	//		auto one = std::vector<bool>{ true };
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_mod(three, two), one));
+	//	}
+	//	{
+	//		auto a = rsa::math::to_bits(342378u);
+	//		auto b = rsa::math::to_bits(448u);
+	//		auto c = rsa::math::to_bits(342378u % 448u);
+	//		EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_mod(a, b), c));
+	//	}
+	//}
+
+	//TEST(Test_RSA, math_is_prime_n__IsCorrect)
+	//{
+	//	EXPECT_EQ(rsa::math::is_prime(0), false);
+	//	EXPECT_EQ(rsa::math::is_prime(1), true);
+	//	EXPECT_EQ(rsa::math::is_prime(2), true);
+	//	EXPECT_EQ(rsa::math::is_prime(3), true);
+	//	EXPECT_EQ(rsa::math::is_prime(4), false);
+	//	EXPECT_EQ(rsa::math::is_prime(5), true);
+	//	EXPECT_EQ(rsa::math::is_prime(6), false);
+	//	EXPECT_EQ(rsa::math::is_prime(7), true);
+	//	EXPECT_EQ(rsa::math::is_prime(8), false);
+	//	EXPECT_EQ(rsa::math::is_prime(9), false);
+	//	EXPECT_EQ(rsa::math::is_prime(10), false);
+	//	EXPECT_EQ(rsa::math::is_prime(11), true);
+	//	EXPECT_EQ(rsa::math::is_prime(57047), true);
+	//	EXPECT_EQ(rsa::math::is_prime(57059), true);
+	//	EXPECT_EQ(rsa::math::is_prime(57061), false);
+	//	EXPECT_EQ(rsa::math::is_prime(57073), true);
+	//	EXPECT_EQ(rsa::math::is_prime(57079), false);
+	//}
+
+	//TEST(Test_RSA, math_is_prime_bits__IsCorrect)
+	//{
+	//	EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(0)), false);
+	//	EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(1)), true);
+	//	EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(2)), true);
+	//	EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(3)), true);
+	//	EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(4)), false);
+	//	EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(5)), true);
+	//	EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(6)), false);
+	//	EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(7)), true);
+	//	EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(8)), false);
+	//	EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(9)), false);
+	//	EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(10)), false);
+	//	EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(11)), true);
+	//	EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(57047)), true);
+	//	EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(57059)), true);
+	//	EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(57061)), false);
+	//	EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(57073)), true);
+	//	EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(57079)), false);
+	//}
+
+	//TEST(Test_RSA, generate_random_bits__SizeOfResultIsCorrect)
+	//{
+	//	auto rng = std::mt19937_64(std::random_device()());
+	//	EXPECT_EQ(rsa::generate_random_bits(rng, 0).size(), 0);
+	//	EXPECT_EQ(rsa::generate_random_bits(rng, 1).size(), 1);
+	//	EXPECT_EQ(rsa::generate_random_bits(rng, rsa::MAX_RANDOM_BITS).size(), rsa::MAX_RANDOM_BITS);
+	//}
+
+	//TEST(Test_RSA, generate_random_bits__ThrowsIfBitsOutOfRange)
+	//{
+	//	auto rng = std::mt19937_64(std::random_device()());
+	//	EXPECT_THROW(rsa::generate_random_bits(rng, rsa::MAX_RANDOM_BITS + 1), std::invalid_argument);
+	//	EXPECT_THROW(rsa::generate_random_bits(rng, std::numeric_limits<std::size_t>::max()), std::invalid_argument);
+	//}
+
+	//TEST(Test_RSA, generate_random_bits__ContainsZerosAndOnes)
+	//{
+	//	auto rng = std::mt19937_64(std::random_device()());
+	//	auto data = rsa::generate_random_bits(rng, 2048);
+	//	EXPECT_FALSE(std::all_of(data.begin(), data.end(), [] (bool b) { return b; }));
+	//	EXPECT_FALSE(std::all_of(data.begin(), data.end(), [] (bool b) { return !b; }));
+	//}
+
+	//TEST(Test_RSA, generate_prime__ThrowsIfBitsOutOfRange)
+	//{
+	//	EXPECT_THROW(rsa::generate_prime(0), std::invalid_argument);
+	//	EXPECT_THROW(rsa::generate_prime(rsa::MAX_PRIME_BITS + 1), std::invalid_argument);
+	//}
+
+	//TEST(Test_RSA, generate_prime__ReturnsPrime)
+	//{
+	//	EXPECT_TRUE(rsa::math::is_prime(rsa::math::to_number(rsa::generate_prime(16))));
+	//	EXPECT_TRUE(rsa::math::is_prime(rsa::math::to_number(rsa::generate_prime(24))));
+	//	// too slow... TT
+	//	//EXPECT_TRUE(rsa::math::is_prime(rsa::math::to_number(rsa::generate_prime(32))));
+	//	//EXPECT_TRUE(rsa::math::is_prime(rsa::math::to_number(rsa::generate_prime(256))));
+	//	//EXPECT_TRUE(rsa::math::is_prime(rsa::math::to_number(rsa::generate_prime(512))));
+	//	//EXPECT_TRUE(rsa::math::is_prime(rsa::math::to_number(rsa::generate_prime(1024))));
+	//}
+
+#pragma endregion
+
+#pragma region new
+
+#pragma region constructors
+
+	TEST(Test_RSA, math_big_uint_default_constructor__DataIsEmptySameAsZero)
 	{
-		EXPECT_EQ(rsa::math::to_bits(0).size(), 0u);
-		EXPECT_EQ(rsa::math::to_bits(1).size(), 1u);
-		EXPECT_EQ(rsa::math::to_bits(std::numeric_limits<std::uint64_t>::max()).size(), std::numeric_limits<std::uint64_t>::digits);
-		EXPECT_EQ(rsa::math::to_bits(std::numeric_limits<std::uint64_t>::max() - 1u).size(), std::numeric_limits<std::uint64_t>::digits);
+		{
+			auto n = rsa::math::big_uint_32();
+			EXPECT_TRUE(n.data().empty());
+			EXPECT_EQ(n, rsa::math::big_uint_32(std::uint32_t{ 0 }));
+		}
 	}
 
-	TEST(Test_RSA, math_to_bits__GivesCorrectBitPattern)
+	TEST(Test_RSA, math_big_uint_numeric_constructor__WorksWithLargerAndSmallerNumbers)
+	{
+		auto a = rsa::math::big_uint_32(std::uint16_t{ 37 });
+		EXPECT_EQ(a.data().size(), 1u);
+		EXPECT_EQ(a.data()[0], std::uint32_t{ 37 });
+
+		auto b = rsa::math::big_uint_32(std::uint64_t{ 37 });
+		EXPECT_EQ(b.data().size(), 1u);
+		EXPECT_EQ(b.data()[0], std::uint32_t{ 37 });
+
+		EXPECT_EQ(a, b);
+	}
+
+	TEST(Test_RSA, math_big_uint_numeric_constructor__GivesCorrectBitPattern)
 	{
 		{
-			auto one = std::vector<bool>(1, true);
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::to_bits(1), one));
+			auto n = rsa::math::big_uint_32(1u);
+			EXPECT_TRUE(n.data().size() == 1);
+			EXPECT_EQ(n.data()[0], std::uint32_t{ 1 });
 		}
 		{
-			auto max = std::vector<bool>(std::numeric_limits<std::uint64_t>::digits, true);
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::to_bits(std::numeric_limits<std::uint64_t>::max()), max));
+			auto n = rsa::math::big_uint_32(53u);
+			EXPECT_TRUE(n.data().size() == 1);
+			EXPECT_EQ(n.data()[0], std::uint32_t{ 53 });
 		}
 		{
-			auto max_sub_one = std::vector<bool>(std::numeric_limits<std::uint64_t>::digits, true);
-			max_sub_one[0] = false;
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::to_bits(std::numeric_limits<std::uint64_t>::max() - 1), max_sub_one));
+			auto n = rsa::math::big_uint_32(std::numeric_limits<std::uint32_t>::max());
+			EXPECT_EQ(n.data().size(), 1);
+			EXPECT_EQ(n.data()[0], std::numeric_limits<std::uint32_t>::max());
+		}
+		{
+			auto n = rsa::math::big_uint_32(std::uint64_t{ std::numeric_limits<std::uint32_t>::max() } + 1u);
+			EXPECT_TRUE(n.data().size() == 2);
+			EXPECT_EQ(n.data()[0], 0u);
+			EXPECT_EQ(n.data()[1], 1u);
+		}
+		{
+			auto n = rsa::math::big_uint_32(std::numeric_limits<std::uint64_t>::max());
+			EXPECT_TRUE(n.data().size() == 2);
+			EXPECT_EQ(n.data()[0], std::numeric_limits<std::uint32_t>::max());
+			EXPECT_EQ(n.data()[1], std::numeric_limits<std::uint32_t>::max());
+		}
+		{
+			auto n = rsa::math::big_uint_8(std::numeric_limits<std::uint64_t>::max());
+			EXPECT_TRUE(n.data().size() == 8);
+			for (auto i = std::size_t{ 0 }; i != 8; ++i)
+				EXPECT_EQ(n.data()[i], std::numeric_limits<std::uint8_t>::max());
 		}
 	}
 
-	TEST(Test_RSA, math_to_number__ThrowsWithIncorrectNumberOfBits)
+#pragma endregion
+
+	// TODO: value assignment
+
+#pragma region general
+
+	TEST(Test_RSA, math_big_uint_to_uint__UintsSmallerThanBlockWontCompile)
 	{
-		EXPECT_THROW(rsa::math::to_number(std::vector<bool>(65, false)), std::invalid_argument);
+		//EXPECT_THROW(rsa::math::big_uint_16(1u).to_uint<std::uint8_t>(), std::range_error);
+
+		//EXPECT_THROW(rsa::math::big_uint_32(1u).to_uint<std::uint8_t>(), std::range_error);
+		//EXPECT_THROW(rsa::math::big_uint_32(1u).to_uint<std::uint16_t>(), std::range_error);
+
+		//EXPECT_THROW(rsa::math::big_uint_64(1u).to_uint<std::uint8_t>(), std::range_error);
+		//EXPECT_THROW(rsa::math::big_uint_64(1u).to_uint<std::uint16_t>(), std::range_error);
+		//EXPECT_THROW(rsa::math::big_uint_64(1u).to_uint<std::uint32_t>(), std::range_error);
 	}
 
-	TEST(Test_RSA, math_to_number__GivesCorrectValue)
+	TEST(Test_RSA, math_big_uint_to_uint__ThrowsForOutOfRangeTypes)
 	{
-		auto digits = std::numeric_limits<std::uint64_t>::digits;
-		{
-			auto one = std::vector<bool>(digits, false);
-			one[0] = true;
-			EXPECT_EQ(rsa::math::to_number(one), 1);
-		}
-		{
-			auto max = std::vector<bool>(digits, true);
-			EXPECT_EQ(rsa::math::to_number(max), std::numeric_limits<std::uint64_t>::max());
-		}
-		{
-			auto max_sub_one = std::vector<bool>(digits, true);
-			max_sub_one[0] = false;
-			EXPECT_EQ(rsa::math::to_number(max_sub_one), std::numeric_limits<std::uint64_t>::max() - 1);
-		}
+		const auto max = std::numeric_limits<std::uint32_t>::max();
+
+		EXPECT_THROW(rsa::math::big_uint_8(max).to_uint<std::uint8_t>(), std::range_error);
+		EXPECT_THROW((rsa::math::big_uint_32(max) + 1u).to_uint<std::uint32_t>(), std::range_error);
 	}
 
-	TEST(Test_RSA, math_bits_at__ReturnsBitAtValidIndex)
+	TEST(Test_RSA, math_big_uint_to_uint__ReturnsCorrectValueWhenInRange)
 	{
-		auto bits = std::vector<bool>(5, false);
-		bits[0] = true;
-		bits[4] = true;
+		const auto max = std::numeric_limits<std::uint32_t>::max();
 
-		for (auto i = std::size_t{ 0 }; i != bits.size(); ++i)
-			EXPECT_EQ(rsa::math::bits_at(bits, i), bits[i]);
+		EXPECT_EQ(rsa::math::big_uint_8(max).to_uint<std::uint32_t>(), max);
+		EXPECT_EQ((rsa::math::big_uint_32(max) + 1u).to_uint<std::uint64_t>(), std::uint64_t{ max } + 1u);
+
+		// ... test more values!
 	}
 
-	TEST(Test_RSA, math_bits_at__ReturnsFalseAtInvalidIndex)
-	{
-		auto bits = std::vector<bool>(5, true);
-		EXPECT_EQ(rsa::math::bits_at(bits, bits.size()), false);
-		EXPECT_EQ(rsa::math::bits_at(bits, std::numeric_limits<std::size_t>::max()), false);
-	}
+#pragma endregion
 
-	TEST(Test_RSA, math_bits_equal__IsCorrect)
-	{
-		{
-			auto a = std::vector<bool>(5, false);
-			auto b = std::vector<bool>();
-			auto c = std::vector<bool>(1, false);
-			EXPECT_TRUE(rsa::math::bits_equal(a, b));
-			EXPECT_TRUE(rsa::math::bits_equal(b, a));
-			EXPECT_TRUE(rsa::math::bits_equal(a, c));
-			EXPECT_TRUE(rsa::math::bits_equal(c, a));
-			EXPECT_TRUE(rsa::math::bits_equal(c, b));
-			EXPECT_TRUE(rsa::math::bits_equal(b, c));
-		}
-		{
-			auto a = std::vector<bool>(5, true);
-			auto b = std::vector<bool>();
-			auto c = std::vector<bool>(1, true);
-			EXPECT_FALSE(rsa::math::bits_equal(a, b));
-			EXPECT_FALSE(rsa::math::bits_equal(b, a));
-			EXPECT_FALSE(rsa::math::bits_equal(a, c));
-			EXPECT_FALSE(rsa::math::bits_equal(c, a));
-			EXPECT_FALSE(rsa::math::bits_equal(c, b));
-			EXPECT_FALSE(rsa::math::bits_equal(b, c));
-		}
-		{
-			auto a = std::vector<bool>{ true, false, true, false, false };
-			auto b = std::vector<bool>{ true, false, true };
-			EXPECT_TRUE(rsa::math::bits_equal(a, b));
-			EXPECT_TRUE(rsa::math::bits_equal(b, a));
-		}
-	}
+	// TODO: math operators
+	// ...
 
-	TEST(Test_RSA, math_bits_greater)
-	{
-		{
-			auto a = std::vector<bool>(5, false);
-			auto b = std::vector<bool>();
-			auto c = std::vector<bool>(1, false);
-			EXPECT_FALSE(rsa::math::bits_greater(a, b));
-			EXPECT_FALSE(rsa::math::bits_greater(b, a));
-			EXPECT_FALSE(rsa::math::bits_greater(a, c));
-			EXPECT_FALSE(rsa::math::bits_greater(c, a));
-			EXPECT_FALSE(rsa::math::bits_greater(c, b));
-			EXPECT_FALSE(rsa::math::bits_greater(b, c));
-		}
-		{
-			auto a = std::vector<bool>{ true };
-			EXPECT_FALSE(rsa::math::bits_greater(a, a));
-		}
-		{
-			auto a = std::vector<bool>{ true, true };
-			auto b = std::vector<bool>{ true, false };
-			EXPECT_TRUE(rsa::math::bits_greater(a, b));
-			EXPECT_FALSE(rsa::math::bits_greater(b, a));
-		}
-	}
+#pragma endregion
 
-	TEST(Test_RSA, math_bits_not_and__IsCorrect)
-	{
-		{
-			auto a = std::vector<bool>{ };
-			auto b = std::vector<bool>{ };
-			EXPECT_EQ(rsa::math::bits_not_and(a, b), std::vector<bool>{ });
-		}
-		{
-			auto a = std::vector<bool>{ false };
-			auto b = std::vector<bool>{ false };
-			EXPECT_EQ(rsa::math::bits_not_and(a, b), std::vector<bool>{ false });
-		}
-		{
-			auto a = std::vector<bool>{ true };
-			auto b = std::vector<bool>{ false };
-			EXPECT_EQ(rsa::math::bits_not_and(a, b), std::vector<bool>{ false });
-		}
-		{
-			auto a = std::vector<bool>{ true };
-			auto b = std::vector<bool>{ true };
-			EXPECT_EQ(rsa::math::bits_not_and(a, b), std::vector<bool>{ false });
-		}
-		{
-			auto a = std::vector<bool>{ false };
-			auto b = std::vector<bool>{ true };
-			EXPECT_EQ(rsa::math::bits_not_and(a, b), std::vector<bool>{ true });
-		}
-	}
-
-	TEST(Test_RSA, math_bits_and__IsCorrect)
-	{
-		{
-			auto a = std::vector<bool>{ false, false };
-			auto b = std::vector<bool>{ false, false };
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_and(a, b), std::vector<bool>{}));
-		}
-		{
-			auto a = std::vector<bool>{ true, false };
-			auto b = std::vector<bool>{ false, false };
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_and(a, b), std::vector<bool>{ }));
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_and(b, a), std::vector<bool>{ }));
-		}
-		{
-			auto a = std::vector<bool>{ true, false };
-			auto b = std::vector<bool>{ true, false };
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_and(a, b), std::vector<bool>{ true }));
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_and(b, a), std::vector<bool>{ true }));
-		}
-		{
-			auto a = std::vector<bool>{ true, true };
-			auto b = std::vector<bool>{ true, false };
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_and(a, b), std::vector<bool>{ true }));
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_and(b, a), std::vector<bool>{ true }));
-		}
-		{
-			auto a = std::vector<bool>{ true, true };
-			auto b = std::vector<bool>{ true, true };
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_and(a, b), std::vector<bool>{ true, true }));
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_and(b, a), std::vector<bool>{ true, true }));
-		}
-	}
-
-	TEST(Test_RSA, math_bits_or__IsCorrect)
-	{
-		{
-			auto a = std::vector<bool>{ false, false };
-			auto b = std::vector<bool>{ false, false };
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_or(a, b), std::vector<bool>{}));
-		}
-		{
-			auto a = std::vector<bool>{ true, false };
-			auto b = std::vector<bool>{ false, false };
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_or(a, b), std::vector<bool>{ true }));
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_or(b, a), std::vector<bool>{ true }));
-		}
-		{
-			auto a = std::vector<bool>{ true, false };
-			auto b = std::vector<bool>{ true, false };
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_or(a, b), std::vector<bool>{ true }));
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_or(b, a), std::vector<bool>{ true }));
-		}
-		{
-			auto a = std::vector<bool>{ true, true };
-			auto b = std::vector<bool>{ true, false };
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_or(a, b), std::vector<bool>{ true, true }));
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_or(b, a), std::vector<bool>{ true, true }));
-		}
-		{
-			auto a = std::vector<bool>{ true, true };
-			auto b = std::vector<bool>{ true, true };
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_or(a, b), std::vector<bool>{ true, true }));
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_or(b, a), std::vector<bool>{ true, true }));
-		}
-	}
-
-	TEST(Test_RSA, math_bits_xor__IsCorrect)
-	{
-		{
-			auto a = std::vector<bool>{ false, false };
-			auto b = std::vector<bool>{ false, false };
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_xor(a, b), std::vector<bool>{}));
-		}
-		{
-			auto a = std::vector<bool>{ true, false };
-			auto b = std::vector<bool>{ false, false };
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_xor(a, b), std::vector<bool>{ true }));
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_xor(b, a), std::vector<bool>{ true }));
-		}
-		{
-			auto a = std::vector<bool>{ true, false };
-			auto b = std::vector<bool>{ true, false };
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_xor(a, b), std::vector<bool>{ }));
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_xor(b, a), std::vector<bool>{ }));
-		}
-		{
-			auto a = std::vector<bool>{ true, true };
-			auto b = std::vector<bool>{ true, false };
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_xor(a, b), std::vector<bool>{ false, true }));
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_xor(b, a), std::vector<bool>{ false, true }));
-		}
-		{
-			auto a = std::vector<bool>{ true, true };
-			auto b = std::vector<bool>{ true, true };
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_xor(a, b), std::vector<bool>{ }));
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_xor(b, a), std::vector<bool>{ }));
-		}
-	}
-
-	TEST(Test_RSA, math_bits_lshift__IsCorrect)
-	{
-		{
-			auto a = std::vector<bool>{ };
-			EXPECT_EQ(rsa::math::bits_lshift(a, 0), a);
-		}
-		{
-			auto a = std::vector<bool>{ };
-			EXPECT_EQ(rsa::math::bits_lshift(a, 1), (std::vector<bool>{ false }));
-		}
-		{
-			auto a = std::vector<bool>{ false };
-			EXPECT_EQ(rsa::math::bits_lshift(a, 1), (std::vector<bool>{ false, false }));
-		}
-		{
-			auto a = std::vector<bool>{ true };
-			EXPECT_EQ(rsa::math::bits_lshift(a, 1), (std::vector<bool>{ false, true }));
-		}
-	}
-
-	TEST(Test_RSA, math_bits_rshift__IsCorrect)
-	{
-		{
-			auto a = std::vector<bool>{ };
-			EXPECT_EQ(rsa::math::bits_rshift(a, 0), a);
-		}
-		{
-			auto a = std::vector<bool>{ };
-			EXPECT_EQ(rsa::math::bits_rshift(a, 1), a);
-		}
-		{
-			auto a = std::vector<bool>(4, true);
-			EXPECT_EQ(rsa::math::bits_rshift(a, 5), std::vector<bool>{ });
-		}
-		{
-			auto a = std::vector<bool>{ true };
-			EXPECT_EQ(rsa::math::bits_rshift(a, 1), std::vector<bool>{ });
-		}
-		{
-			auto a = std::vector<bool>(4, true);
-			EXPECT_EQ(rsa::math::bits_rshift(a, 2), std::vector<bool>(2, true));
-		}
-	}
-
-	TEST(Test_RSA, math_bits_add__IsCorrect)
-	{
-		{
-			auto a = rsa::math::to_bits(0);
-			auto b = rsa::math::to_bits(0);
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_add(a, b), rsa::math::to_bits(0)));
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_add(b, a), rsa::math::to_bits(0)));
-		}
-		{
-			auto a = rsa::math::to_bits(1);
-			auto b = rsa::math::to_bits(0);
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_add(a, b), rsa::math::to_bits(1)));
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_add(b, a), rsa::math::to_bits(1)));
-		}
-		{
-			auto a = rsa::math::to_bits(1);
-			auto b = rsa::math::to_bits(1);
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_add(a, b), rsa::math::to_bits(2)));
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_add(b, a), rsa::math::to_bits(2)));
-		}
-		{
-			auto a = rsa::math::to_bits(273);
-			auto b = rsa::math::to_bits(54);
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_add(a, b), rsa::math::to_bits(273 + 54)));
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_add(b, a), rsa::math::to_bits(273 + 54)));
-		}
-		{
-			auto a = rsa::math::to_bits(2734756);
-			auto b = rsa::math::to_bits(939876523);
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_add(a, b), rsa::math::to_bits(2734756 + 939876523)));
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_add(b, a), rsa::math::to_bits(2734756 + 939876523)));
-		}
-	}
-
-	TEST(Test_RSA, math_bits_sub__WorksWithValidParameters)
-	{
-		{
-			auto zero = std::vector<bool>{ };
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_sub(zero, zero), zero));
-		}
-		{
-			auto one = std::vector<bool>{ true };
-			auto zero = std::vector<bool>{ };
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_sub(zero, zero), zero));
-		}
-		{
-			auto big = rsa::math::to_bits(53);
-			auto smol = rsa::math::to_bits(12);
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_sub(big, smol), rsa::math::to_bits(53 - 12)));
-		}
-		{
-			auto big = rsa::math::to_bits(532387);
-			auto smol = rsa::math::to_bits(5323);
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_sub(big, smol), rsa::math::to_bits(532387 - 5323)));
-		}
-		{
-			auto max = rsa::math::to_bits(std::numeric_limits<std::uint64_t>::max());
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_sub(max, max), std::vector<bool>{ }));
-		}
-	}
-
-	TEST(Test_RSA, math_bits_sub__ThrowsWithInvalidParameters)
-	{
-		{
-			auto zero = std::vector<bool>{ };
-			auto one = std::vector<bool>{ true };
-			EXPECT_THROW(rsa::math::bits_sub(zero, one), std::invalid_argument);
-		}
-		{
-			auto a = std::vector<bool>{ true, true };
-			auto b = std::vector<bool>{ true, false, true };
-			EXPECT_THROW(rsa::math::bits_sub(a, b), std::invalid_argument);
-		}
-	}
-
-	TEST(Test_RSA, math_bits_mul__IsCorrect)
-	{
-		{
-			auto zero = std::vector<bool>{ };
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_mul(zero, zero), zero));
-		}
-		{
-			auto zero = std::vector<bool>{ };
-			auto one = std::vector<bool>{ true };
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_mul(zero, one), zero));
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_mul(one, zero), zero));
-		}
-		{
-			auto a = rsa::math::to_bits(53u);
-			auto r = rsa::math::to_bits(53u * 53u);
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_mul(a, a), r));
-		}
-		{
-			auto a = rsa::math::to_bits(923u);
-			auto b = rsa::math::to_bits(1u);
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_mul(a, b), a));
-		}
-	}
-
-	TEST(Test_RSA, math_bits_div__DivisionByZeroThrows)
-	{
-		{
-			auto zero = std::vector<bool>{ };
-			EXPECT_THROW(rsa::math::bits_div(zero, zero), std::invalid_argument);
-		}
-		{
-			auto one = std::vector<bool>{ true };
-			auto zero = std::vector<bool>{ };
-			EXPECT_THROW(rsa::math::bits_div(one, zero), std::invalid_argument);
-		}
-	}
-
-	TEST(Test_RSA, math_bits_div__WorksWithValidParameters)
-	{
-		{
-			auto zero = std::vector<bool>{ };
-			auto one = std::vector<bool>{ true };
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_div(zero, one), zero));
-		}
-		{
-			auto zero = std::vector<bool>{ };
-			auto num = rsa::math::to_bits(1234u);
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_div(zero, num), zero));
-		}
-		{
-			auto one = std::vector<bool>{ true };
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_div(one, one), one));
-		}
-		{
-			auto num = rsa::math::to_bits(1234u);
-			auto one = std::vector<bool>{ true };
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_div(num, num), one));
-		}
-		{
-			auto max = rsa::math::to_bits(4u);
-			auto two = rsa::math::to_bits(2u);
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_div(max, two), two));
-		}
-		{
-			auto max = rsa::math::to_bits(5u);
-			auto two = rsa::math::to_bits(2u);
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_div(max, two), two));
-		}
-		{
-			auto max = rsa::math::to_bits(3u);
-			auto two = rsa::math::to_bits(2u);
-			auto one = rsa::math::to_bits(1u);
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_div(max, two), one));
-		}
-	}
-
-	TEST(Test_RSA, math_bits_mod__ModulusZeroThrows)
-	{
-		{
-			auto zero = std::vector<bool>{ };
-			EXPECT_THROW(rsa::math::bits_mod(zero, zero), std::invalid_argument);
-		}
-		{
-			auto one = std::vector<bool>{ true };
-			auto zero = std::vector<bool>{ };
-			EXPECT_THROW(rsa::math::bits_mod(one, zero), std::invalid_argument);
-		}
-	}
-
-	TEST(Test_RSA, math_bits_mod__IsCorrect)
-	{
-		{
-			auto zero = std::vector<bool>{ };
-			auto one = std::vector<bool>{ true };
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_mod(zero, one), zero));
-		}
-
-		{
-			auto one = std::vector<bool>{ true };
-			auto zero = std::vector<bool>{ };
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_mod(one, one), zero));
-		}
-		{
-			auto two = std::vector<bool>{ false, true };
-			auto one = std::vector<bool>{ true };
-			auto zero = std::vector<bool>{ };
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_mod(two, one), zero));
-		}
-		{
-			auto three = std::vector<bool>{ true, true };
-			auto two = std::vector<bool>{ false, true };
-			auto one = std::vector<bool>{ true };
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_mod(three, two), one));
-		}
-		{
-			auto a = rsa::math::to_bits(342378u);
-			auto b = rsa::math::to_bits(448u);
-			auto c = rsa::math::to_bits(342378u % 448u);
-			EXPECT_TRUE(rsa::math::bits_equal(rsa::math::bits_mod(a, b), c));
-		}
-	}
-
-	TEST(Test_RSA, math_is_prime_n__IsCorrect)
-	{
-		EXPECT_EQ(rsa::math::is_prime(0), false);
-		EXPECT_EQ(rsa::math::is_prime(1), true);
-		EXPECT_EQ(rsa::math::is_prime(2), true);
-		EXPECT_EQ(rsa::math::is_prime(3), true);
-		EXPECT_EQ(rsa::math::is_prime(4), false);
-		EXPECT_EQ(rsa::math::is_prime(5), true);
-		EXPECT_EQ(rsa::math::is_prime(6), false);
-		EXPECT_EQ(rsa::math::is_prime(7), true);
-		EXPECT_EQ(rsa::math::is_prime(8), false);
-		EXPECT_EQ(rsa::math::is_prime(9), false);
-		EXPECT_EQ(rsa::math::is_prime(10), false);
-		EXPECT_EQ(rsa::math::is_prime(11), true);
-		EXPECT_EQ(rsa::math::is_prime(57047), true);
-		EXPECT_EQ(rsa::math::is_prime(57059), true);
-		EXPECT_EQ(rsa::math::is_prime(57061), false);
-		EXPECT_EQ(rsa::math::is_prime(57073), true);
-		EXPECT_EQ(rsa::math::is_prime(57079), false);
-	}
-
-	TEST(Test_RSA, math_is_prime_bits__IsCorrect)
-	{
-		EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(0)), false);
-		EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(1)), true);
-		EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(2)), true);
-		EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(3)), true);
-		EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(4)), false);
-		EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(5)), true);
-		EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(6)), false);
-		EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(7)), true);
-		EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(8)), false);
-		EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(9)), false);
-		EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(10)), false);
-		EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(11)), true);
-		EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(57047)), true);
-		EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(57059)), true);
-		EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(57061)), false);
-		EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(57073)), true);
-		EXPECT_EQ(rsa::math::is_prime(rsa::math::to_bits(57079)), false);
-	}
-
-	TEST(Test_RSA, generate_random_bits__SizeOfResultIsCorrect)
-	{
-		auto rng = std::mt19937_64(std::random_device()());
-		EXPECT_EQ(rsa::generate_random_bits(rng, 0).size(), 0);
-		EXPECT_EQ(rsa::generate_random_bits(rng, 1).size(), 1);
-		EXPECT_EQ(rsa::generate_random_bits(rng, rsa::MAX_RANDOM_BITS).size(), rsa::MAX_RANDOM_BITS);
-	}
-
-	TEST(Test_RSA, generate_random_bits__ThrowsIfBitsOutOfRange)
-	{
-		auto rng = std::mt19937_64(std::random_device()());
-		EXPECT_THROW(rsa::generate_random_bits(rng, rsa::MAX_RANDOM_BITS + 1), std::invalid_argument);
-		EXPECT_THROW(rsa::generate_random_bits(rng, std::numeric_limits<std::size_t>::max()), std::invalid_argument);
-	}
-
-	TEST(Test_RSA, generate_random_bits__ContainsZerosAndOnes)
-	{
-		auto rng = std::mt19937_64(std::random_device()());
-		auto data = rsa::generate_random_bits(rng, 2048);
-		EXPECT_FALSE(std::all_of(data.begin(), data.end(), [] (bool b) { return b; }));
-		EXPECT_FALSE(std::all_of(data.begin(), data.end(), [] (bool b) { return !b; }));
-	}
-
-	TEST(Test_RSA, generate_prime__ThrowsIfBitsOutOfRange)
-	{
-		EXPECT_THROW(rsa::generate_prime(0), std::invalid_argument);
-		EXPECT_THROW(rsa::generate_prime(rsa::MAX_PRIME_BITS + 1), std::invalid_argument);
-	}
-
-	TEST(Test_RSA, generate_prime__ReturnsPrime)
-	{
-		EXPECT_TRUE(rsa::math::is_prime(rsa::math::to_number(rsa::generate_prime(16))));
-		EXPECT_TRUE(rsa::math::is_prime(rsa::math::to_number(rsa::generate_prime(24))));
-		// too slow... TT
-		//EXPECT_TRUE(rsa::math::is_prime(rsa::math::to_number(rsa::generate_prime(32))));
-		//EXPECT_TRUE(rsa::math::is_prime(rsa::math::to_number(rsa::generate_prime(256))));
-		//EXPECT_TRUE(rsa::math::is_prime(rsa::math::to_number(rsa::generate_prime(512))));
-		//EXPECT_TRUE(rsa::math::is_prime(rsa::math::to_number(rsa::generate_prime(1024))));
-	}
+	// TODO (sometime): operations on numbers with different block sizes, or a way to cast between them.
 
 } // test
 
