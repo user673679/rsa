@@ -1,5 +1,8 @@
 #pragma once
 
+#include "rsa__utils.h"
+
+#include <algorithm>
 #include <cstdint>
 #include <limits>
 #include <stdexcept>
@@ -61,6 +64,8 @@ namespace rsa
 			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
 			uint_t to_uint() const;
 
+			bool is_zero() const;
+
 			data_type& data();
 			data_type const& data() const;
 
@@ -73,9 +78,16 @@ namespace rsa
 			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
 			big_uint& operator+=(uint_t n);
 
+			big_uint& operator-=(big_uint const& b);
+
+			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+			big_uint& operator-=(uint_t n);
+
 #pragma endregion
 
 		private:
+
+			void trim();
 
 			data_type m_data;
 		};
@@ -144,6 +156,12 @@ namespace rsa
 		}
 
 		template<class block_t>
+		bool big_uint<block_t>::is_zero() const
+		{
+			return m_data.empty();
+		}
+
+		template<class block_t>
 		typename big_uint<block_t>::data_type& big_uint<block_t>::data()
 		{
 			return m_data;
@@ -173,6 +191,11 @@ namespace rsa
 		template<class block_t>
 		big_uint<block_t>& big_uint<block_t>::operator+=(big_uint const& b)
 		{
+			auto& a = *this;
+
+			if (b.is_zero())
+				return a;
+
 			const auto get_block = [] (data_type const& data, std::size_t i)
 			{
 				return (i < data.size()) ? data[i] : block_type{ 0 };
@@ -191,7 +214,6 @@ namespace rsa
 				return ((a += b) < b);
 			};
 
-			auto& a = *this;
 			auto carry = false;
 			const auto max_size = std::max(a.data().size(), b.data().size());
 
@@ -218,17 +240,61 @@ namespace rsa
 			return operator+=(big_uint(n));
 		}
 
+		template<class block_t>
+		big_uint<block_t>& big_uint<block_t>::operator-=(big_uint const& b)
+		{
+			auto& a = *this;
+
+			if (b.is_zero())
+				return a;
+
+			if (b > a)
+				throw std::invalid_argument("cannot subtract larger value from smaller one.");
+
+			utils::die_if(a.data().size() < b.data().size());
+
+			const auto get_block = [] (data_type const& data, std::size_t i)
+			{
+				return (i < data.size()) ? data[i] : block_type{ 0 };
+			};
+
+			const auto checked_subassign = [] (block_type& a, block_type b)
+			{
+				return ((a -= b) > b);
+			};
+
+			auto borrow = false;
+
+			// add corresponding blocks. in case of underflow, carry one to the next block.
+			for (auto i = std::size_t{ 0 }; i != a.data().size(); ++i)
+			{
+				auto const& b_block = get_block(b.data(), i);
+				auto& a_block = a.data()[i];
+
+				// use bitwise or so both sides are evaluated.
+				borrow = (checked_subassign(a_block, b_block) | checked_subassign(a_block, borrow ? block_type{ 1 } : block_type{ 0 }));
+			}
+
+			a.trim();
+
+			return a;
+		}
+
+		template<class block_t>
+		template<class uint_t, typename>
+		big_uint<block_t>& big_uint<block_t>::operator-=(uint_t n)
+		{
+			return operator-=(big_uint(n));
+		}
+
 #pragma endregion
 
-#pragma region comparison
+#pragma region comparison operators
 
 		template<class block_t>
 		bool operator==(big_uint<block_t> const& a, big_uint<block_t> const& b)
 		{
-			if (a.data().size() != b.data().size())
-				return false;
-
-			return std::equal(a.data().begin(), a.data().end(), b.data().begin());
+			return std::equal(a.data().begin(), a.data().end(), b.data().begin(), b.data().end());
 		}
 
 		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
@@ -261,6 +327,78 @@ namespace rsa
 			return (big_uint<block_t>(a) != b);
 		}
 
+		template<class block_t>
+		bool operator<(big_uint<block_t> const& a, big_uint<block_t> const& b)
+		{
+			return std::lexicographical_compare(a.data().rbegin(), a.data().rend(), b.data().rbegin(), b.data().rend());
+		}
+
+		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		bool operator<(big_uint<block_t> const& a, uint_t b)
+		{
+			return (a < big_uint<block_t>(b));
+		}
+
+		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		bool operator<(uint_t a, big_uint<block_t> const& b)
+		{
+			return (big_uint<block_t>(a) < b);
+		}
+
+		template<class block_t>
+		bool operator>(big_uint<block_t> const& a, big_uint<block_t> const& b)
+		{
+			return (b < a);
+		}
+
+		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		bool operator>(big_uint<block_t> const& a, uint_t b)
+		{
+			return (a > big_uint<block_t>(b));
+		}
+
+		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		bool operator>(uint_t a, big_uint<block_t> const& b)
+		{
+			return (big_uint<block_t>(a) > b);
+		}
+
+		template<class block_t>
+		bool operator<=(big_uint<block_t> const& a, big_uint<block_t> const& b)
+		{
+			return !(b < a);
+		}
+
+		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		bool operator<=(big_uint<block_t> const& a, uint_t b)
+		{
+			return (a <= big_uint<block_t>(b));
+		}
+
+		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		bool operator<=(uint_t a, big_uint<block_t> const& b)
+		{
+			return (big_uint<block_t>(a) <= b);
+		}
+
+		template<class block_t>
+		bool operator>=(big_uint<block_t> const& a, big_uint<block_t> const& b)
+		{
+			return !(a < b);
+		}
+
+		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		bool operator>=(big_uint<block_t> const& a, uint_t b)
+		{
+			return (a >= big_uint<block_t>(b));
+		}
+
+		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		bool operator>=(uint_t a, big_uint<block_t> const& b)
+		{
+			return (big_uint<block_t>(a) >= b);
+		}
+
 #pragma endregion
 
 #pragma region math operators
@@ -283,7 +421,33 @@ namespace rsa
 			return (a += b);
 		}
 
+		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		big_uint<block_t> operator-(big_uint<block_t> a, uint_t b)
+		{
+			return (a -= big_uint<block_t>(b));
+		}
+
+		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		big_uint<block_t> operator-(uint_t a, big_uint<block_t> b)
+		{
+			return (b -= big_uint<block_t>(a));
+		}
+
+		template<class block_t>
+		big_uint<block_t> operator-(big_uint<block_t> a, big_uint<block_t> const& b)
+		{
+			return (a -= b);
+		}
+
 #pragma endregion
+
+		template<class block_t>
+		void big_uint<block_t>::trim()
+		{
+			m_data.erase(
+				std::find_if(m_data.rbegin(), m_data.rend(), [] (block_type b) { return b != block_type{ 0 }; }).base(), 
+				m_data.end());
+		}
 
 	} // math
 

@@ -208,7 +208,7 @@ namespace test
 
 #pragma region math operators
 
-	TEST(Test_RSA, math_addassign__BigUIntIsCorrect)
+	TEST(Test_RSA, math_addassign__BigUintIsCorrect)
 	{
 		// a (two blocks), b (two blocks), ends in carry
 		{
@@ -338,6 +338,30 @@ namespace test
 		}
 	}
 
+	TEST(Test_RSA, math_subassign__SubtractingLargerNumberThrows)
+	{
+		EXPECT_THROW(rsa::math::big_uint_32(0u) -= rsa::math::big_uint_32(1u), std::invalid_argument);
+		EXPECT_THROW(rsa::math::big_uint_32(5u) -= rsa::math::big_uint_32(6u), std::invalid_argument);
+	}
+
+	TEST(Test_RSA, math_subassign__BigUintIsCorrect)
+	{
+		{
+			auto zero = rsa::math::big_uint_32(0u);
+			EXPECT_EQ(zero -= zero, zero);
+		}
+		{
+			auto max64 = std::numeric_limits<std::uint64_t>::max();
+			auto n = rsa::math::big_uint_8(max64);
+			EXPECT_EQ(n -= n, 0u);
+			EXPECT_TRUE(n.is_zero());
+		}
+
+		// uint_8(max16 + 1u)
+		// subtract ((max16 - max8) + 1)
+		// should end up with only one block
+	}
+
 #pragma endregion
 
 #pragma region comparison
@@ -355,6 +379,8 @@ namespace test
 		EXPECT_TRUE(rsa::math::big_uint_32(64334u) != std::uint16_t{ 2u });
 		EXPECT_TRUE(std::uint8_t{ 12u } != rsa::math::big_uint_8(123u));
 	}
+
+	// < > <= >=
 
 #pragma endregion
 
