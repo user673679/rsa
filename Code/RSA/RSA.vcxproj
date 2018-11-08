@@ -154,6 +154,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="test__rsa_math__big_uint.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="rsa_math__big_uint.h" />
+    <ClInclude Include="rsa_math__primes.h" />
+    <ClInclude Include="rsa__utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
