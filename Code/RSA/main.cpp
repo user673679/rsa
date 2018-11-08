@@ -122,7 +122,7 @@ namespace rsa
 
 			while (n != uint_t{ 0 })
 			{
-				// integer promotion, conversion to greater rank, implicit conversion to block_type (yikes)
+				// integer promotion, conversion to greater rank, implicit conversion to block_type
 				m_data.push_back(block_max & n);
 
 				if (can_rshift)
@@ -181,15 +181,15 @@ namespace rsa
 		template<class block_t>
 		big_uint<block_t>& big_uint<block_t>::operator+=(big_uint const& b)
 		{
-			const auto get_block_or = [] (data_type const& data, std::size_t i, block_type value) -> block_type const&
+			const auto get_block = [] (data_type const& data, std::size_t i)
 			{
-				return (i < data.size()) ? data[i] : value;
+				return (i < data.size()) ? data[i] : block_type{ 0 };
 			};
 
-			const auto get_block_or_extend = [] (data_type& data, std::size_t i, block_type value) -> block_type&
+			const auto get_block_extend = [] (data_type& data, std::size_t i) -> block_type&
 			{
 				if (i == data.size())
-					data.push_back(value);
+					data.push_back(block_type{ 0 });
 
 				return data[i];
 			};
@@ -200,17 +200,17 @@ namespace rsa
 			};
 
 			auto& a = *this;
-			const auto max_size = std::max(a.data().size(), b.data().size());
-
 			auto carry = false;
+			const auto max_size = std::max(a.data().size(), b.data().size());
 
 			// add corresponding blocks. in case of overflow, carry one to the next block.
 			for (auto i = std::size_t{ 0 }; i != max_size; ++i)
 			{
-				auto const& b_block = get_block_or(b.data(), i, block_type{ 0 });
-				auto& a_block = get_block_or_extend(a.data(), i, block_type{ 0 });
+				auto const& b_block = get_block(b.data(), i);
+				auto& a_block = get_block_extend(a.data(), i);
 
-				carry = (checked_addassign(a_block, b_block) | checked_addassign(a_block, carry ? block_type{ 1 } : block_type{ 0 })); // bitwise or doesn't short-circuit!
+				// use bitwise or so both sides are evaluated.
+				carry = (checked_addassign(a_block, b_block) | checked_addassign(a_block, carry ? block_type{ 1 } : block_type{ 0 }));
 			}
 
 			if (carry)
@@ -239,13 +239,13 @@ namespace rsa
 			return std::equal(a.data().begin(), a.data().end(), b.data().begin());
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint<uint_t>>
+		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
 		bool operator==(big_uint<block_t> const& a, uint_t b)
 		{
 			return (a == big_uint<block_t>(b));
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint<uint_t>>
+		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
 		bool operator==(uint_t a, big_uint<block_t> const& b)
 		{
 			return (big_uint<block_t>(a) == b);
@@ -257,13 +257,13 @@ namespace rsa
 			return !(a == b);
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint<uint_t>>
+		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
 		bool operator!=(big_uint<block_t> const& a, uint_t b)
 		{
 			return (a != big_uint<block_t>(b));
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint<uint_t>>
+		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
 		bool operator!=(uint_t a, big_uint<block_t> const& b)
 		{
 			return (big_uint<block_t>(a) != b);
@@ -1268,6 +1268,8 @@ namespace test
 		}
 	}
 
+	// TODO: construct from big_uint with different block_type
+
 #pragma endregion
 
 	// TODO: value assignment
@@ -1306,8 +1308,157 @@ namespace test
 
 #pragma endregion
 
-	// TODO: math operators
-	// ...
+#pragma region math operators
+
+	TEST(Test_RSA, math_addassign__BigUIntIsCorrect)
+	{
+		// a (two blocks), b (two blocks), ends in carry
+		{
+			auto max16 = std::numeric_limits<std::uint16_t>::max();
+			auto a = rsa::math::big_uint_8(max16);
+			auto b = rsa::math::big_uint_8(max16);
+			a += b;
+			EXPECT_EQ(a, std::uint32_t{ max16 } + max16);
+			EXPECT_EQ(a.to_uint<std::uint32_t>(), std::uint32_t{ max16 } + max16);
+		}
+		// a (two blocks), b (two blocks), doesn't end in carry
+		{
+			auto max16 = std::numeric_limits<std::uint16_t>::max();
+			auto a = rsa::math::big_uint_8(max16 / 2u);
+			auto b = rsa::math::big_uint_8(max16 / 2u);
+			a += b;
+			EXPECT_EQ(a, std::uint32_t{ max16 / 2u + max16 / 2u });
+			EXPECT_EQ(a.to_uint<std::uint32_t>(), std::uint32_t{ max16 / 2u + max16 / 2u });
+		}
+		// a (two blocks), b (one block), ends in carry
+		{
+			auto max16 = std::numeric_limits<std::uint16_t>::max();
+			auto a = rsa::math::big_uint_8(max16);
+			auto b = rsa::math::big_uint_8(1u);
+			a += b;
+			EXPECT_EQ(a, std::uint32_t{ max16 } +1u);
+			EXPECT_EQ(a.to_uint<std::uint32_t>(), std::uint32_t{ max16 } + 1u);
+		}
+		// a (one block), b (two blocks), ends in carry
+		{
+			auto max16 = std::numeric_limits<std::uint16_t>::max();
+			auto a = rsa::math::big_uint_8(1u);
+			auto b = rsa::math::big_uint_8(max16);
+			a += b;
+			EXPECT_EQ(a, std::uint32_t{ max16 } + 1u);
+			EXPECT_EQ(a.to_uint<std::uint32_t>(), std::uint32_t{ max16 } + 1u);
+		}
+		// a (two blocks), b (one block), doesn't end in carry
+		{
+			auto max16 = std::numeric_limits<std::uint16_t>::max();
+			auto max8 = std::numeric_limits<std::uint8_t>::max();
+			auto a = rsa::math::big_uint_8(max16 / 2u);
+			auto b = rsa::math::big_uint_8(max8);
+			a += b;
+			EXPECT_EQ(a, (max16 / 2u) + max8);
+			EXPECT_EQ(a.to_uint<std::uint16_t>(), (max16 / 2u) + max8);
+		}
+		// a (one block), b (two blocks), doesn't end in carry
+		{
+			auto max16 = std::numeric_limits<std::uint16_t>::max();
+			auto max8 = std::numeric_limits<std::uint8_t>::max();
+			auto a = rsa::math::big_uint_8(max8);
+			auto b = rsa::math::big_uint_8(max16 / 2u);
+			a += b;
+			EXPECT_EQ(a, (max16 / 2u) + max8);
+			EXPECT_EQ(a.to_uint<std::uint16_t>(), (max16 / 2u) + max8);
+		}
+	}
+
+	TEST(Test_RSA, math_addassign__ValueIsCorrect)
+	{
+		// assigning with zero
+		{
+			auto n = rsa::math::big_uint_32(0u);
+			n += rsa::math::big_uint_32(0u);
+			EXPECT_EQ(n, 0u);
+			EXPECT_EQ(n.to_uint<std::uint32_t>(), 0u);
+		}
+		{
+			auto max = std::numeric_limits<std::uint32_t>::max();
+			auto n = rsa::math::big_uint_32(0u);
+			n += max;
+			EXPECT_EQ(n, max);
+			EXPECT_EQ(n.to_uint<std::uint32_t>(), max);
+		}
+		{
+			auto max = std::numeric_limits<std::uint32_t>::max();
+			auto n = rsa::math::big_uint_32(max);
+			n += 0u;
+			EXPECT_EQ(n, max);
+			EXPECT_EQ(n.to_uint<std::uint32_t>(), max);
+		}
+		// assigning inside block
+		{
+			auto max = std::numeric_limits<std::uint8_t>::max();
+			auto n = rsa::math::big_uint_16(max);
+			n += max;
+			EXPECT_EQ(n, std::uint32_t{ max } +max);
+			EXPECT_EQ(n.to_uint<std::uint16_t>(), std::uint16_t{ max } +max);
+		}
+		// assigning outside block
+		{
+			auto max = std::numeric_limits<std::uint8_t>::max();
+			auto n = rsa::math::big_uint_8(max);
+			n += 1u;
+			EXPECT_EQ(n, std::uint16_t{ max } +1u);
+			EXPECT_EQ(n.to_uint<std::uint16_t>(), std::uint16_t{ max } +1u);
+		}
+		{
+			auto max16 = std::numeric_limits<std::uint16_t>::max();
+			auto max32 = std::numeric_limits<std::uint8_t>::max();
+			auto n = rsa::math::big_uint_8(max16);
+			n += max32;
+			EXPECT_EQ(n, std::uint64_t{ max32 } +max16);
+			EXPECT_EQ(n.to_uint<std::uint64_t>(), std::uint64_t{ max32 } +max16);
+		}
+	}
+
+	TEST(Test_RSA, math_add__IsCorrect)
+	{
+		{
+			auto n = rsa::math::big_uint_32(23u) + rsa::math::big_uint_32(78u);
+			EXPECT_EQ(n, 23u + 78u);
+			EXPECT_EQ(n.to_uint<std::uint32_t>(), 23u + 78u);
+		}
+		{
+			auto max8 = std::numeric_limits<std::uint8_t>::max();
+			auto n = rsa::math::big_uint_8(max8) + 2u;
+			EXPECT_EQ(n, std::uint32_t{ max8 } + 2u);
+			EXPECT_EQ(n.to_uint<std::uint32_t>(), std::uint32_t{ max8 } + 2u);
+		}
+		{
+			auto max8 = std::numeric_limits<std::uint8_t>::max();
+			auto n = max8 + rsa::math::big_uint_8(1u);
+			EXPECT_EQ(n, std::uint32_t{ max8 } + 1u);
+			EXPECT_EQ(n.to_uint<std::uint32_t>(), std::uint32_t{ max8 } + 1u);
+		}
+	}
+
+#pragma endregion
+
+#pragma region comparison
+
+	TEST(Test_RSA, math_equality__IsCorrect)
+	{
+		EXPECT_TRUE(rsa::math::big_uint_32(53u) == rsa::math::big_uint_32(53u));
+		EXPECT_TRUE(rsa::math::big_uint_32(64u) == std::uint16_t{ 64u });
+		EXPECT_TRUE(std::uint8_t{ 12u } == rsa::math::big_uint_8(12u));
+	}
+
+	TEST(Test_RSA, math_inequality__IsCorrect)
+	{
+		EXPECT_TRUE(rsa::math::big_uint_32(51u) != rsa::math::big_uint_32(53u));
+		EXPECT_TRUE(rsa::math::big_uint_32(64334u) != std::uint16_t{ 2u });
+		EXPECT_TRUE(std::uint8_t{ 12u } != rsa::math::big_uint_8(123u));
+	}
+
+#pragma endregion
 
 #pragma endregion
 
