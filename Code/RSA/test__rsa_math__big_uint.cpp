@@ -239,6 +239,16 @@ namespace test
 			EXPECT_EQ(n <<= (7u * 8u + 4u), std::uint64_t{ 1u } << (7u * 8u + 4u));
 			EXPECT_EQ(n.data().size(), 8u);
 		}
+		{
+			auto n = rsa::math::big_uint_8(12u);
+			EXPECT_EQ(n <<= 1u, 12u << 1u);
+		}
+	}
+
+	TEST(Test_RSA, math_big_uint_lshift__IsCorrect)
+	{
+		auto n = rsa::math::big_uint_8(1u);
+		EXPECT_EQ((n << 1u), (1u << 1u));
 	}
 
 	TEST(Test_RSA, math_big_uint_rshiftassign__IsCorrect)
@@ -271,6 +281,12 @@ namespace test
 			EXPECT_EQ(n >>= (7u * 8u + 4u), std::uint32_t{ utils::uint8_max >> 4u });
 			EXPECT_EQ(n.data().size(), 1u);
 		}
+	}
+
+	TEST(Test_RSA, math_big_uint_rshift__IsCorrect)
+	{
+		auto n = rsa::math::big_uint_8(1u);
+		EXPECT_TRUE((n >> 1u).is_zero());
 	}
 
 #pragma endregion
@@ -472,6 +488,64 @@ namespace test
 		}
 	}
 
+	TEST(Test_RSA, math_mulassign__IsCorrect)
+	{
+		// zeros
+		{
+			auto a = rsa::math::big_uint_8(0u);
+			auto b = rsa::math::big_uint_8(0u);
+			EXPECT_TRUE((a *= b).is_zero());
+		}
+		{
+			auto a = rsa::math::big_uint_8(0u);
+			auto b = rsa::math::big_uint_8(56u);
+			EXPECT_TRUE((a *= b).is_zero());
+		}
+		{
+			auto a = rsa::math::big_uint_8(45u);
+			auto b = rsa::math::big_uint_8(0u);
+			EXPECT_TRUE((a *= b).is_zero());
+		}
+		// ones
+		{
+			auto a = rsa::math::big_uint_8(1u);
+			auto b = rsa::math::big_uint_8(1u);
+			EXPECT_EQ((a *= b), 1u);
+		}
+		{
+			auto a = rsa::math::big_uint_8(1u);
+			auto b = rsa::math::big_uint_8(56u);
+			EXPECT_EQ((a *= b), 56u);
+		}
+		{
+			auto a = rsa::math::big_uint_8(45u);
+			auto b = rsa::math::big_uint_8(1u);
+			EXPECT_EQ((a *= b), 45u);
+		}
+		// within block
+		{
+			auto a = rsa::math::big_uint_8(12u);
+			EXPECT_EQ(a *= a, 144u);
+		}
+		{
+			auto a = rsa::math::big_uint_8(5u);
+			auto b = rsa::math::big_uint_8(20u);
+			EXPECT_EQ(a *= b, 100u);
+		}
+		// outside block
+		{
+			auto a = rsa::math::big_uint_8(2u);
+			auto b = rsa::math::big_uint_8(128u);
+			EXPECT_EQ(a *= b, 256u);
+			EXPECT_EQ(a.data().size(), 2u);
+		}
+		{
+			auto a = rsa::math::big_uint_8(43u);
+			auto b = rsa::math::big_uint_8(24892368u);
+			EXPECT_EQ(a *= b, 43u * 24892368u);
+		}
+	}
+
 #pragma endregion
 
 #pragma region comparison
@@ -577,12 +651,11 @@ namespace test
 #pragma endregion
 
 	// TDOO (now):
-		// test stuff with bool
-		// move math operations out of the class?
+		// test everything with bool (it's an unsigned type!)
+		// move math operations out of the class.
 		// string constructor
 		// to_string()
 		// *= /=
-		// bitwise operators
 
 	// TODO (sometime):
 		// construct from big_uints with other block sizes

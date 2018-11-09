@@ -232,13 +232,15 @@ namespace rsa
 					return *this;
 			}
 
+			utils::die_if(n >= block_digits);
+			const auto carry_shift = block_type(block_digits - n);
 			auto carry = block_type{ 0 };
 
 			// shift by partial blocks
 			for (auto& block : m_data)
 			{
-				// take high bits, shift them to low bits for next block
-				const auto carry_out = block_type(block >> n); // (cast to fix integer promotion)
+				// take high bits, shift them to low bits for next block (cast to fix type from integer promotion)
+				const auto carry_out = block_type(block >> carry_shift);
 
 				// shift low bits to high, apply carry bits
 				block = (block << n) | carry;
@@ -279,14 +281,16 @@ namespace rsa
 					return *this;
 			}
 
+			utils::die_if(n >= block_digits);
+			const auto carry_shift = block_type(block_digits - n);
 			auto carry = block_type{ 0 };
 
 			for (auto i_block = m_data.rbegin(); i_block != m_data.rend(); ++i_block)
 			{
 				auto& block = *i_block;
 
-				// take low bits, shift them to high bits for the next block
-				const auto carry_out = block_type(block << n); // (cast to fix integer promotion)
+				// take low bits, shift them to high bits for the next block (cast to fix type from integer promotion)
+				const auto carry_out = block_type(block << carry_shift);
 
 				// shift high bits to low, apply carry bits
 				block = (block >> n) | carry;
@@ -405,32 +409,31 @@ namespace rsa
 		template<class block_t>
 		big_uint<block_t>& big_uint<block_t>::operator*=(big_uint b)
 		{
-			if (a.is_zero()) return a;
-			if (b.is_zero()) { a.data().clear(); return a; }
+			{
+				auto& a = *this;
 
-			if (b == 1u) return a;
-			if (a == 1u) { a = b; return a; }
+				if (a.is_zero()) return a;
+				if (b.is_zero()) { a.data().clear(); return a; }
+
+				if (b == 1u) return a;
+				if (a == 1u) { a = b; return a; }
+			}
 
 			auto a = std::move(*this);
 
 			auto& c = *this;
 			utils::die_if(!c.is_zero());
 
-			const auto get_block = [] (data_type const& data, std::size_t i)
+			while (!b.is_zero())
 			{
-				return (i < data.size()) ? data[i] : block_type{ 0 };
-			};
-
-			while (b != 0)
-			{
-				if (get_block(b.data(), 0) & 1u != 0)
+				if ((b.data()[0] & 1u) != 0u)
 					c += a;
 
 				a <<= 1u;
 				b >>= 1u;
 			}
 
-			return a;
+			return c;
 		}
 
 		template<class block_t>
@@ -556,6 +559,22 @@ namespace rsa
 		bool operator>=(uint_t a, big_uint<block_t> const& b)
 		{
 			return (big_uint<block_t>(a) >= b);
+		}
+
+#pragma endregion
+
+#pragma region bitwise operators
+
+		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		big_uint<block_t> operator<<(big_uint<block_t> a, uint_t b)
+		{
+			return (a <<= b);
+		}
+
+		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		big_uint<block_t> operator>>(big_uint<block_t> a, uint_t b)
+		{
+			return (a >>= b);
 		}
 
 #pragma endregion
