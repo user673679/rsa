@@ -237,11 +237,11 @@ namespace rsa
 			// shift by partial blocks
 			for (auto& block : m_data)
 			{
-				// mask high bits, shift them to low bits for next block
-				const auto carry_out = block_type(block >> n); // (cast is to fix integer promotion)
+				// take high bits, shift them to low bits for next block
+				const auto carry_out = block_type(block >> n); // (cast to fix integer promotion)
 
-				// shift low bits to high, and apply carry bits
-				block = (block << n) | carry; 
+				// shift low bits to high, apply carry bits
+				block = (block << n) | carry;
 
 				carry = carry_out;
 			}
@@ -254,12 +254,50 @@ namespace rsa
 			return *this;
 		}
 
-		//template<class block_t>
-		//template<class uint_t, typename>
-		//big_uint<block_t>& big_uint<block_t>::operator>>=(uint_t n)
-		//{
-		//	// ... 
-		//}
+		template<class block_t>
+		template<class uint_t, typename>
+		big_uint<block_t>& big_uint<block_t>::operator>>=(uint_t n)
+		{
+			if (n == uint_t{ 0 })
+				return *this;
+
+			if (is_zero())
+				return *this;
+
+			// shift by whole blocks
+			if (n >= block_digits)
+			{
+				auto blocks = n / block_digits;
+				m_data.erase(m_data.begin(), m_data.begin() + std::min<std::size_t>(blocks, m_data.size()));
+
+				if (is_zero())
+					return *this;
+
+				n -= (blocks * block_digits);
+
+				if (n == uint_t{ 0 })
+					return *this;
+			}
+
+			auto carry = block_type{ 0 };
+
+			for (auto i_block = m_data.rbegin(); i_block != m_data.rend(); ++i_block)
+			{
+				auto& block = *i_block;
+
+				// take low bits, shift them to high bits for the next block
+				const auto carry_out = block_type(block << n); // (cast to fix integer promotion)
+
+				// shift high bits to low, apply carry bits
+				block = (block >> n) | carry;
+
+				carry = carry_out;
+			}
+
+			trim();
+
+			return *this;
+		}
 
 #pragma endregion
 

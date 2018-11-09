@@ -209,14 +209,14 @@ namespace test
 
 #pragma region bitwise operators
 
-	TEST(Test_RSA, math_big_uint_lshiftassign__)
+	TEST(Test_RSA, math_big_uint_lshiftassign__IsCorrect)
 	{
 		// shifting by zero does nothing
 		{
 			auto n = rsa::math::big_uint_8(utils::uint8_max);
 			EXPECT_EQ(n <<= 0u, utils::uint8_max);
 		}
-		// shifting zero is still zero
+		// shifting zero does nothing
 		{
 			auto zero = rsa::math::big_uint_16();
 			EXPECT_TRUE((zero <<= 23u).is_zero());
@@ -241,7 +241,37 @@ namespace test
 		}
 	}
 
-	// TODO: rshift
+	TEST(Test_RSA, math_big_uint_rshiftassign__IsCorrect)
+	{
+		// shifting by zero does nothing
+		{
+			auto n = rsa::math::big_uint_8(utils::uint8_max);
+			EXPECT_EQ(n >>= 0u, utils::uint8_max);
+		}
+		// shifting zero does nothing
+		{
+			auto zero = rsa::math::big_uint_16();
+			EXPECT_TRUE((zero >>= 23u).is_zero());
+		}
+		// shifting by whole block only
+		{
+			auto n = rsa::math::big_uint_8(utils::uint32_max);
+			EXPECT_EQ(n >>= 16u, utils::uint16_max);
+			EXPECT_EQ(n.data().size(), 2u);
+		}
+		// shifting within block only
+		{
+			auto n = rsa::math::big_uint_32(utils::uint16_max);
+			EXPECT_EQ(n >>= 8u, utils::uint8_max);
+			EXPECT_EQ(n.data().size(), 1u);
+		}
+		// shifting by whole and partial block
+		{
+			auto n = rsa::math::big_uint_8(utils::uint64_max);
+			EXPECT_EQ(n >>= (7u * 8u + 4u), std::uint32_t{ utils::uint8_max >> 4u });
+			EXPECT_EQ(n.data().size(), 1u);
+		}
+	}
 
 #pragma endregion
 
