@@ -1,5 +1,6 @@
 
 #include "rsa_math__big_uint.h"
+#include "test_utils__uint_max.h"
 
 #include <gtest/gtest.h>
 
@@ -129,27 +130,27 @@ namespace test
 			EXPECT_EQ(n.data()[0], std::uint32_t{ 53 });
 		}
 		{
-			auto n = rsa::math::big_uint_32(std::numeric_limits<std::uint32_t>::max());
+			auto n = rsa::math::big_uint_32(utils::uint32_max);
 			EXPECT_EQ(n.data().size(), 1);
-			EXPECT_EQ(n.data()[0], std::numeric_limits<std::uint32_t>::max());
+			EXPECT_EQ(n.data()[0], utils::uint32_max);
 		}
 		{
-			auto n = rsa::math::big_uint_32(std::uint64_t{ std::numeric_limits<std::uint32_t>::max() } +1u);
+			auto n = rsa::math::big_uint_32(std::uint64_t{ utils::uint32_max } +1u);
 			EXPECT_TRUE(n.data().size() == 2);
 			EXPECT_EQ(n.data()[0], 0u);
 			EXPECT_EQ(n.data()[1], 1u);
 		}
 		{
-			auto n = rsa::math::big_uint_32(std::numeric_limits<std::uint64_t>::max());
+			auto n = rsa::math::big_uint_32(utils::uint64_max);
 			EXPECT_TRUE(n.data().size() == 2);
-			EXPECT_EQ(n.data()[0], std::numeric_limits<std::uint32_t>::max());
-			EXPECT_EQ(n.data()[1], std::numeric_limits<std::uint32_t>::max());
+			EXPECT_EQ(n.data()[0], utils::uint32_max);
+			EXPECT_EQ(n.data()[1], utils::uint32_max);
 		}
 		{
-			auto n = rsa::math::big_uint_8(std::numeric_limits<std::uint64_t>::max());
+			auto n = rsa::math::big_uint_8(utils::uint64_max);
 			EXPECT_TRUE(n.data().size() == 8);
 			for (auto i = std::size_t{ 0 }; i != 8; ++i)
-				EXPECT_EQ(n.data()[i], std::numeric_limits<std::uint8_t>::max());
+				EXPECT_EQ(n.data()[i], utils::uint8_max);
 		}
 	}
 
@@ -159,11 +160,11 @@ namespace test
 
 #pragma region assignment
 
-	// not testing copy / move, as they're simple defaults
+	// not testing copy / move (default)
 
 	TEST(Test_RSA, math_big_uint_value_assign__Works)
 	{
-		auto max = std::numeric_limits<std::uint64_t>::max();
+		auto max = utils::uint64_max;
 		auto n = rsa::math::big_uint_32(5u);
 		n = max;
 
@@ -190,7 +191,7 @@ namespace test
 
 	TEST(Test_RSA, math_big_uint_to_uint__ThrowsForOutOfRangeTypes)
 	{
-		const auto max = std::numeric_limits<std::uint32_t>::max();
+		const auto max = utils::uint32_max;
 
 		EXPECT_THROW(rsa::math::big_uint_8(max).to_uint<std::uint8_t>(), std::range_error);
 		EXPECT_THROW((rsa::math::big_uint_32(max) + 1u).to_uint<std::uint32_t>(), std::range_error);
@@ -198,7 +199,7 @@ namespace test
 
 	TEST(Test_RSA, math_big_uint_to_uint__ReturnsCorrectValueWhenInRange)
 	{
-		const auto max = std::numeric_limits<std::uint32_t>::max();
+		const auto max = utils::uint32_max;
 
 		EXPECT_EQ(rsa::math::big_uint_8(max).to_uint<std::uint32_t>(), max);
 		EXPECT_EQ((rsa::math::big_uint_32(max) + 1u).to_uint<std::uint64_t>(), std::uint64_t{ max } +1u);
@@ -212,7 +213,7 @@ namespace test
 	{
 		// a (two blocks), b (two blocks), ends in carry
 		{
-			auto max16 = std::numeric_limits<std::uint16_t>::max();
+			auto max16 = utils::uint16_max;
 			auto a = rsa::math::big_uint_8(max16);
 			auto b = rsa::math::big_uint_8(max16);
 			a += b;
@@ -221,7 +222,7 @@ namespace test
 		}
 		// a (two blocks), b (two blocks), doesn't end in carry
 		{
-			auto max16 = std::numeric_limits<std::uint16_t>::max();
+			auto max16 = utils::uint16_max;
 			auto a = rsa::math::big_uint_8(max16 / 2u);
 			auto b = rsa::math::big_uint_8(max16 / 2u);
 			a += b;
@@ -230,7 +231,7 @@ namespace test
 		}
 		// a (two blocks), b (one block), ends in carry
 		{
-			auto max16 = std::numeric_limits<std::uint16_t>::max();
+			auto max16 = utils::uint16_max;
 			auto a = rsa::math::big_uint_8(max16);
 			auto b = rsa::math::big_uint_8(1u);
 			a += b;
@@ -239,7 +240,7 @@ namespace test
 		}
 		// a (one block), b (two blocks), ends in carry
 		{
-			auto max16 = std::numeric_limits<std::uint16_t>::max();
+			auto max16 = utils::uint16_max;
 			auto a = rsa::math::big_uint_8(1u);
 			auto b = rsa::math::big_uint_8(max16);
 			a += b;
@@ -248,8 +249,8 @@ namespace test
 		}
 		// a (two blocks), b (one block), doesn't end in carry
 		{
-			auto max16 = std::numeric_limits<std::uint16_t>::max();
-			auto max8 = std::numeric_limits<std::uint8_t>::max();
+			auto max16 = utils::uint16_max;
+			auto max8 = utils::uint8_max;
 			auto a = rsa::math::big_uint_8(max16 / 2u);
 			auto b = rsa::math::big_uint_8(max8);
 			a += b;
@@ -258,8 +259,8 @@ namespace test
 		}
 		// a (one block), b (two blocks), doesn't end in carry
 		{
-			auto max16 = std::numeric_limits<std::uint16_t>::max();
-			auto max8 = std::numeric_limits<std::uint8_t>::max();
+			auto max16 = utils::uint16_max;
+			auto max8 = utils::uint8_max;
 			auto a = rsa::math::big_uint_8(max8);
 			auto b = rsa::math::big_uint_8(max16 / 2u);
 			a += b;
@@ -278,14 +279,14 @@ namespace test
 			EXPECT_EQ(n.to_uint<std::uint32_t>(), 0u);
 		}
 		{
-			auto max = std::numeric_limits<std::uint32_t>::max();
+			auto max = utils::uint32_max;
 			auto n = rsa::math::big_uint_32(0u);
 			n += max;
 			EXPECT_EQ(n, max);
 			EXPECT_EQ(n.to_uint<std::uint32_t>(), max);
 		}
 		{
-			auto max = std::numeric_limits<std::uint32_t>::max();
+			auto max = utils::uint32_max;
 			auto n = rsa::math::big_uint_32(max);
 			n += 0u;
 			EXPECT_EQ(n, max);
@@ -293,7 +294,7 @@ namespace test
 		}
 		// assigning inside block
 		{
-			auto max = std::numeric_limits<std::uint8_t>::max();
+			auto max = utils::uint8_max;
 			auto n = rsa::math::big_uint_16(max);
 			n += max;
 			EXPECT_EQ(n, std::uint32_t{ max } +max);
@@ -301,15 +302,15 @@ namespace test
 		}
 		// assigning outside block
 		{
-			auto max = std::numeric_limits<std::uint8_t>::max();
+			auto max = utils::uint8_max;
 			auto n = rsa::math::big_uint_8(max);
 			n += 1u;
 			EXPECT_EQ(n, std::uint16_t{ max } +1u);
 			EXPECT_EQ(n.to_uint<std::uint16_t>(), std::uint16_t{ max } +1u);
 		}
 		{
-			auto max16 = std::numeric_limits<std::uint16_t>::max();
-			auto max32 = std::numeric_limits<std::uint8_t>::max();
+			auto max16 = utils::uint16_max;
+			auto max32 = utils::uint8_max;
 			auto n = rsa::math::big_uint_8(max16);
 			n += max32;
 			EXPECT_EQ(n, std::uint64_t{ max32 } +max16);
@@ -325,13 +326,13 @@ namespace test
 			EXPECT_EQ(n.to_uint<std::uint32_t>(), 23u + 78u);
 		}
 		{
-			auto max8 = std::numeric_limits<std::uint8_t>::max();
+			auto max8 = utils::uint8_max;
 			auto n = rsa::math::big_uint_8(max8) + 2u;
 			EXPECT_EQ(n, std::uint32_t{ max8 } +2u);
 			EXPECT_EQ(n.to_uint<std::uint32_t>(), std::uint32_t{ max8 } +2u);
 		}
 		{
-			auto max8 = std::numeric_limits<std::uint8_t>::max();
+			auto max8 = utils::uint8_max;
 			auto n = max8 + rsa::math::big_uint_8(1u);
 			EXPECT_EQ(n, std::uint32_t{ max8 } +1u);
 			EXPECT_EQ(n.to_uint<std::uint32_t>(), std::uint32_t{ max8 } +1u);
@@ -351,19 +352,55 @@ namespace test
 			EXPECT_EQ(zero -= zero, zero);
 		}
 		{
-			auto max64 = std::numeric_limits<std::uint64_t>::max();
+			auto max64 = utils::uint64_max;
 			auto n = rsa::math::big_uint_8(max64);
 			EXPECT_EQ(n -= n, 0u);
 			EXPECT_TRUE(n.is_zero());
 		}
 		{
-			auto max16 = std::numeric_limits<std::uint16_t>::max();
-			auto max8 = std::numeric_limits<std::uint8_t>::max();
+			auto max16 = utils::uint16_max;
+			auto max8 = utils::uint8_max;
 			auto a = rsa::math::big_uint_8(std::uint32_t{ max16 } + 1u);
 			auto b = rsa::math::big_uint_8((std::uint32_t{ max16 } - max8) + 1u);
 			a -= b;
 			EXPECT_EQ(a, max8);
 			EXPECT_EQ(a.data().size(), 1u);
+		}
+	}
+
+	TEST(Test_RSA, math_subassign__ValueIsCorrect)
+	{
+		{
+			auto max64 = utils::uint64_max;
+			auto n = rsa::math::big_uint_8(max64);
+			EXPECT_EQ(n -= 0u, n);
+		}
+		{
+			auto max32 = utils::uint32_max;
+			auto max64 = utils::uint64_max;
+			auto n = rsa::math::big_uint_32(max64);
+			EXPECT_EQ(n -= max32, max64 - max32);
+			EXPECT_EQ(n.data()[0], 0u);
+		}
+	}
+
+	TEST(Test_RSA, math_sub__IsCorrect)
+	{
+		{
+			auto a = rsa::math::big_uint_32(2389u);
+			auto b = rsa::math::big_uint_32(192847u);
+			EXPECT_THROW(a - b, std::invalid_argument);
+		}
+		{
+			auto a = rsa::math::big_uint_32(192847u);
+			auto b = 2389u;
+			EXPECT_EQ(a - b, (192847u - 2389u));
+		}
+		{
+			auto max8 = utils::uint8_max;
+			auto a = rsa::math::big_uint_16(std::uint16_t{ max8 } + 3u);
+			auto b = 3u;
+			EXPECT_EQ(a - b, max8);
 		}
 	}
 
@@ -385,14 +422,96 @@ namespace test
 		EXPECT_TRUE(std::uint8_t{ 12u } != rsa::math::big_uint_8(123u));
 	}
 
-	// < > <= >=
+	TEST(Test_RSA, math_lessthan__IsCorrect)
+	{
+		// same data sizes
+		{
+			EXPECT_TRUE(rsa::math::big_uint_8(53u) < rsa::math::big_uint_8(123u));
+			EXPECT_FALSE(rsa::math::big_uint_32(utils::uint32_max) < rsa::math::big_uint_32(23u));
+			EXPECT_FALSE(rsa::math::big_uint_16(utils::uint32_max) < rsa::math::big_uint_16(utils::uint32_max));
+		}
+		// different data sizes
+		{
+			EXPECT_TRUE(rsa::math::big_uint_8(12u) < rsa::math::big_uint_8(utils::uint16_max));
+			EXPECT_FALSE(rsa::math::big_uint_16(utils::uint64_max) < rsa::math::big_uint_16(1234u));
+		}
+		{
+			EXPECT_TRUE(3u < rsa::math::big_uint_32(12u));
+		}
+		{
+			EXPECT_FALSE(rsa::math::big_uint_32(12u) < 12u);
+		}
+	}
+
+	TEST(Test_RSA, math_greaterthan__IsCorrect)
+	{
+		// same data sizes
+		{
+			EXPECT_TRUE(rsa::math::big_uint_8(123u) > rsa::math::big_uint_8(53u));
+			EXPECT_FALSE(rsa::math::big_uint_32(23u) > rsa::math::big_uint_32(utils::uint32_max));
+			EXPECT_FALSE(rsa::math::big_uint_16(utils::uint32_max) > rsa::math::big_uint_16(utils::uint32_max));
+		}
+		// different data sizes
+		{
+			EXPECT_TRUE(rsa::math::big_uint_8(utils::uint16_max) > rsa::math::big_uint_8(12u));
+			EXPECT_FALSE(rsa::math::big_uint_16(1234u) > rsa::math::big_uint_16(utils::uint64_max));
+		}
+		{
+			EXPECT_TRUE(rsa::math::big_uint_32(12u) > 3u);
+		}
+		{
+			EXPECT_FALSE(12u > rsa::math::big_uint_32(12u));
+		}
+	}
+
+	TEST(Test_RSA, math_lessthanequal__IsCorrect)
+	{
+		// same data sizes
+		{
+			EXPECT_TRUE(rsa::math::big_uint_8(53u) <= rsa::math::big_uint_8(123u));
+			EXPECT_FALSE(rsa::math::big_uint_32(utils::uint32_max) <= rsa::math::big_uint_32(23u));
+			EXPECT_TRUE(rsa::math::big_uint_16(utils::uint32_max) <= rsa::math::big_uint_16(utils::uint32_max));
+		}
+		// different data sizes
+		{
+			EXPECT_TRUE(rsa::math::big_uint_8(12u) <= rsa::math::big_uint_8(utils::uint16_max));
+			EXPECT_FALSE(rsa::math::big_uint_16(utils::uint64_max) <= rsa::math::big_uint_16(1234u));
+		}
+		{
+			EXPECT_TRUE(3u <= rsa::math::big_uint_32(12u));
+		}
+		{
+			EXPECT_TRUE(rsa::math::big_uint_32(12u) <= 12u);
+		}
+	}
+
+	TEST(Test_RSA, math_greaterthanequal__IsCorrect)
+	{
+		// same data sizes
+		{
+			EXPECT_TRUE(rsa::math::big_uint_8(123u) >= rsa::math::big_uint_8(53u));
+			EXPECT_FALSE(rsa::math::big_uint_32(23u) >= rsa::math::big_uint_32(utils::uint32_max));
+			EXPECT_TRUE(rsa::math::big_uint_16(utils::uint32_max) >= rsa::math::big_uint_16(utils::uint32_max));
+		}
+		// different data sizes
+		{
+			EXPECT_TRUE(rsa::math::big_uint_8(utils::uint16_max) >= rsa::math::big_uint_8(12u));
+			EXPECT_FALSE(rsa::math::big_uint_16(1234u) >= rsa::math::big_uint_16(utils::uint64_max));
+		}
+		{
+			EXPECT_TRUE(rsa::math::big_uint_32(12u) >= 3u);
+		}
+		{
+			EXPECT_TRUE(12u >= rsa::math::big_uint_32(12u));
+		}
+	}
 
 #pragma endregion
 
 	// TDOO (now):
 		// string constructor
 		// to_string()
-		// -= *= /=
+		// *= /=
 
 	// TODO (sometime):
 		// bitwise operators

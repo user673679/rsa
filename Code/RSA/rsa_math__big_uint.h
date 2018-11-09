@@ -41,7 +41,7 @@ namespace rsa
 
 			big_uint();
 
-			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+			template<class uint_t>
 			explicit big_uint(uint_t n);
 
 			big_uint(big_uint const&) = default;
@@ -61,7 +61,7 @@ namespace rsa
 
 #pragma region general
 
-			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+			template<class uint_t>
 			uint_t to_uint() const;
 
 			bool is_zero() const;
@@ -107,9 +107,11 @@ namespace rsa
 		}
 
 		template<class block_t>
-		template<class uint_t, typename>
+		template<class uint_t>
 		big_uint<block_t>::big_uint(uint_t n)
 		{
+			static_assert(meta::is_uint_v<uint_t>, "`uint_t` must be an unsigned integer.");
+
 			// shifting by >= the number digits in the type is undefined behaviour.
 			constexpr auto can_rshift = (block_digits < std::numeric_limits<uint_t>::digits);
 
@@ -130,9 +132,11 @@ namespace rsa
 #pragma region general
 
 		template<class block_t>
-		template<class uint_t, typename>
+		template<class uint_t>
 		uint_t big_uint<block_t>::to_uint() const
 		{
+			static_assert(meta::is_uint_v<uint_t>, "`uint_t` must be an unsigned integer.");
+
 			// it's much easier to static_assert / throw here if uint_t may be too small.
 			// checking the actual value would be a lot more work.
 			{
@@ -451,7 +455,8 @@ namespace rsa
 		void big_uint<block_t>::trim()
 		{
 			m_data.erase(
-				std::find_if(m_data.rbegin(), m_data.rend(), [] (block_type b) { return b != block_type{ 0 }; }).base(), 
+				std::find_if(m_data.rbegin(), m_data.rend(), 
+					[] (block_type b) { return b != block_type{ 0 }; }).base(), 
 				m_data.end());
 		}
 

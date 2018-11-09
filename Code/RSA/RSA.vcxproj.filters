@@ -24,5 +24,8 @@
     <ClInclude Include="rsa_math__primes.h">
       <Filter>rsa</Filter>
     </ClInclude>
+    <ClInclude Include="test_utils__uint_max.h">
+      <Filter>test</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
