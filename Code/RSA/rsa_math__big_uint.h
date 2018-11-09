@@ -34,9 +34,6 @@ namespace rsa
 			using block_type = block_t;
 			using data_type = std::vector<block_type>;
 
-			static constexpr auto block_digits = std::numeric_limits<block_type>::digits;
-			static constexpr auto block_max = std::numeric_limits<block_type>::max();
-
 #pragma region constructors
 
 			big_uint();
@@ -86,6 +83,9 @@ namespace rsa
 #pragma endregion
 
 		private:
+
+			static constexpr auto block_digits = std::numeric_limits<block_type>::digits;
+			static constexpr auto block_max = std::numeric_limits<block_type>::max();
 
 			void trim();
 
