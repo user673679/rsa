@@ -31,6 +31,8 @@ namespace rsa
 		{
 		public:
 
+			static_assert(meta::is_uint_v<block_t>, "`uint_t` must be an unsigned integer.");
+
 			using block_type = block_t;
 			using data_type = std::vector<block_type>;
 
@@ -68,6 +70,16 @@ namespace rsa
 
 #pragma endregion
 
+#pragma region bitwise operators
+
+			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+			big_uint& operator<<=(uint_t n);
+
+			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+			big_uint& operator>>=(uint_t n);
+
+#pragma endregion
+
 #pragma region math operators
 
 			big_uint& operator+=(big_uint const& b);
@@ -80,6 +92,11 @@ namespace rsa
 			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
 			big_uint& operator-=(uint_t n);
 
+			big_uint& operator*=(big_uint b);
+
+			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+			big_uint& operator*=(uint_t n);
+
 #pragma endregion
 
 		private:
@@ -87,6 +104,7 @@ namespace rsa
 			static constexpr auto block_digits = std::numeric_limits<block_type>::digits;
 			static constexpr auto block_max = std::numeric_limits<block_type>::max();
 
+			bool has_extra_empty_blocks() const;
 			void trim();
 
 			data_type m_data;
@@ -190,6 +208,61 @@ namespace rsa
 
 #pragma endregion
 
+#pragma region bitwise operators
+
+		template<class block_t>
+		template<class uint_t, typename>
+		big_uint<block_t>& big_uint<block_t>::operator<<=(uint_t n)
+		{
+			if (n == uint_t{ 0 })
+				return *this;
+
+			if (is_zero())
+				return *this;
+			
+			// shift by whole blocks
+			if (n >= block_digits)
+			{
+				auto blocks = n / block_digits;
+				m_data.insert(m_data.begin(), blocks, block_type{ 0 });
+
+				n -= (blocks * block_digits);
+
+				if (n == uint_t{ 0 })
+					return *this;
+			}
+
+			auto carry = block_type{ 0 };
+
+			// shift by partial blocks
+			for (auto& block : m_data)
+			{
+				// mask high bits, shift them to low bits for next block
+				const auto carry_out = block_type(block >> n); // (cast is to fix integer promotion)
+
+				// shift low bits to high, and apply carry bits
+				block = (block << n) | carry; 
+
+				carry = carry_out;
+			}
+
+			if (carry != block_type{ 0 })
+				m_data.push_back(carry);
+
+			utils::die_if(has_extra_empty_blocks());
+
+			return *this;
+		}
+
+		//template<class block_t>
+		//template<class uint_t, typename>
+		//big_uint<block_t>& big_uint<block_t>::operator>>=(uint_t n)
+		//{
+		//	// ... 
+		//}
+
+#pragma endregion
+
 #pragma region math operators
 
 		template<class block_t>
@@ -289,6 +362,44 @@ namespace rsa
 		big_uint<block_t>& big_uint<block_t>::operator-=(uint_t n)
 		{
 			return operator-=(big_uint(n));
+		}
+
+		template<class block_t>
+		big_uint<block_t>& big_uint<block_t>::operator*=(big_uint b)
+		{
+			if (a.is_zero()) return a;
+			if (b.is_zero()) { a.data().clear(); return a; }
+
+			if (b == 1u) return a;
+			if (a == 1u) { a = b; return a; }
+
+			auto a = std::move(*this);
+
+			auto& c = *this;
+			utils::die_if(!c.is_zero());
+
+			const auto get_block = [] (data_type const& data, std::size_t i)
+			{
+				return (i < data.size()) ? data[i] : block_type{ 0 };
+			};
+
+			while (b != 0)
+			{
+				if (get_block(b.data(), 0) & 1u != 0)
+					c += a;
+
+				a <<= 1u;
+				b >>= 1u;
+			}
+
+			return a;
+		}
+
+		template<class block_t>
+		template<class uint_t, typename>
+		big_uint<block_t>& big_uint<block_t>::operator*=(uint_t n)
+		{
+			return operator*=(big_uint(n));
 		}
 
 #pragma endregion
@@ -450,6 +561,15 @@ namespace rsa
 		}
 
 #pragma endregion
+
+		template<class block_t>
+		bool big_uint<block_t>::has_extra_empty_blocks() const
+		{
+			return
+				(std::find_if(m_data.rbegin(), m_data.rend(), 
+					[] (block_type b) { return b != block_type{ 0 }; }).base() !=
+				m_data.end());
+		}
 
 		template<class block_t>
 		void big_uint<block_t>::trim()

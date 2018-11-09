@@ -154,8 +154,6 @@ namespace test
 		}
 	}
 
-	// TODO: construct from big_uint with different block_type
-
 #pragma endregion
 
 #pragma region assignment
@@ -204,6 +202,46 @@ namespace test
 		EXPECT_EQ(rsa::math::big_uint_8(max).to_uint<std::uint32_t>(), max);
 		EXPECT_EQ((rsa::math::big_uint_32(max) + 1u).to_uint<std::uint64_t>(), std::uint64_t{ max } +1u);
 	}
+
+	// TODO: is_zero()
+
+#pragma endregion
+
+#pragma region bitwise operators
+
+	TEST(Test_RSA, math_big_uint_lshiftassign__)
+	{
+		// shifting by zero does nothing
+		{
+			auto n = rsa::math::big_uint_8(utils::uint8_max);
+			EXPECT_EQ(n <<= 0u, utils::uint8_max);
+		}
+		// shifting zero is still zero
+		{
+			auto zero = rsa::math::big_uint_16();
+			EXPECT_TRUE((zero <<= 23u).is_zero());
+		}
+		// shifting by whole block only
+		{
+			auto n = rsa::math::big_uint_8(utils::uint8_max);
+			EXPECT_EQ(n <<= 16u, std::uint32_t{ utils::uint8_max } << 16u);
+			EXPECT_EQ(n.data().size(), 3u);
+		}
+		// shifting within block only
+		{
+			auto n = rsa::math::big_uint_32(utils::uint16_max);
+			EXPECT_EQ(n <<= 16u, utils::uint32_max - utils::uint16_max);
+			EXPECT_EQ(n.data().size(), 1u);
+		}
+		// shifting by whole and partial block
+		{
+			auto n = rsa::math::big_uint_8(1u);
+			EXPECT_EQ(n <<= (7u * 8u + 4u), std::uint64_t{ 1u } << (7u * 8u + 4u));
+			EXPECT_EQ(n.data().size(), 8u);
+		}
+	}
+
+	// TODO: rshift
 
 #pragma endregion
 
@@ -509,12 +547,14 @@ namespace test
 #pragma endregion
 
 	// TDOO (now):
+		// test stuff with bool
+		// move math operations out of the class?
 		// string constructor
 		// to_string()
 		// *= /=
+		// bitwise operators
 
 	// TODO (sometime):
-		// bitwise operators
 		// construct from big_uints with other block sizes
 
 } // test
