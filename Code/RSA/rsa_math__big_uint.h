@@ -258,9 +258,9 @@ namespace rsa
 				return (i < data.size()) ? data[i] : block_type{ 0 };
 			};
 
-			const auto checked_subassign = [] (block_type& a, block_type b)
+			const auto checked_sub = [] (block_type& out, block_type a, block_type b)
 			{
-				return ((a -= b) > b);
+				return ((out = a - b) > a);
 			};
 
 			auto borrow = false;
@@ -272,7 +272,7 @@ namespace rsa
 				auto& a_block = a.data()[i];
 
 				// use bitwise or so both sides are evaluated.
-				borrow = (checked_subassign(a_block, b_block) | checked_subassign(a_block, borrow ? block_type{ 1 } : block_type{ 0 }));
+				borrow = (checked_sub(a_block, a_block, b_block) | checked_sub(a_block, a_block, borrow ? block_type{ 1 } : block_type{ 0 }));
 			}
 
 			a.trim();
@@ -330,6 +330,12 @@ namespace rsa
 		template<class block_t>
 		bool operator<(big_uint<block_t> const& a, big_uint<block_t> const& b)
 		{
+			if (a.data().size() < b.data().size())
+				return true;
+
+			if (b.data().size() < a.data().size())
+				return false;
+
 			return std::lexicographical_compare(a.data().rbegin(), a.data().rend(), b.data().rbegin(), b.data().rend());
 		}
 

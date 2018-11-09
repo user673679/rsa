@@ -356,10 +356,15 @@ namespace test
 			EXPECT_EQ(n -= n, 0u);
 			EXPECT_TRUE(n.is_zero());
 		}
-
-		// uint_8(max16 + 1u)
-		// subtract ((max16 - max8) + 1)
-		// should end up with only one block
+		{
+			auto max16 = std::numeric_limits<std::uint16_t>::max();
+			auto max8 = std::numeric_limits<std::uint8_t>::max();
+			auto a = rsa::math::big_uint_8(std::uint32_t{ max16 } + 1u);
+			auto b = rsa::math::big_uint_8((std::uint32_t{ max16 } - max8) + 1u);
+			a -= b;
+			EXPECT_EQ(a, max8);
+			EXPECT_EQ(a.data().size(), 1u);
+		}
 	}
 
 #pragma endregion
