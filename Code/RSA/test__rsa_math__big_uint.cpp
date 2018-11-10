@@ -209,6 +209,72 @@ namespace test
 
 #pragma region bitwise operators
 
+	TEST(Test_RSA, math_big_uint_bit_and__IsCorrect)
+	{
+		{
+			auto zero = rsa::math::big_uint_32(0u);
+			EXPECT_TRUE((zero &= zero).is_zero());
+		}
+		{
+			auto zero = rsa::math::big_uint_32(0u);
+			auto something = rsa::math::big_uint_32(3476u);
+			EXPECT_EQ(zero &= something, 0u);
+		}
+		{
+			auto a = rsa::math::big_uint_8(12395787u);
+			auto b = rsa::math::big_uint_8(19787u);
+			EXPECT_EQ(a &= b, std::uint32_t{ 12395787u } & 19787u);
+		}
+		{
+			auto a = rsa::math::big_uint_8(12395787u);
+			EXPECT_EQ(a &= a, std::uint32_t{ 12395787u });
+		}
+	}
+
+	TEST(Test_RSA, math_big_uint_bit_or__IsCorrect)
+	{
+		{
+			auto zero = rsa::math::big_uint_32(0u);
+			EXPECT_TRUE((zero |= zero).is_zero());
+		}
+		{
+			auto zero = rsa::math::big_uint_32(0u);
+			auto something = rsa::math::big_uint_32(3476u);
+			EXPECT_EQ(zero |= something, something);
+		}
+		{
+			auto a = rsa::math::big_uint_8(12395787u);
+			auto b = rsa::math::big_uint_8(19787u);
+			EXPECT_EQ(a |= b, std::uint32_t{ 12395787u } | 19787u);
+		}
+		{
+			auto a = rsa::math::big_uint_8(12395787u);
+			EXPECT_EQ(a |= a, std::uint32_t{ 12395787u });
+		}
+	}
+
+	TEST(Test_RSA, math_big_uint_bit_xor__IsCorrect)
+	{
+		{
+			auto zero = rsa::math::big_uint_32(0u);
+			EXPECT_TRUE((zero ^= zero).is_zero());
+		}
+		{
+			auto zero = rsa::math::big_uint_32(0u);
+			auto something = rsa::math::big_uint_32(3476u);
+			EXPECT_EQ(zero ^= something, something);
+		}
+		{
+			auto a = rsa::math::big_uint_8(12395787u);
+			auto b = rsa::math::big_uint_8(19787u);
+			EXPECT_EQ(a ^= b, std::uint32_t{ 12395787u } ^ 19787u);
+		}
+		{
+			auto a = rsa::math::big_uint_8(12395787u);
+			EXPECT_TRUE((a ^= a).is_zero());
+		}
+	}
+
 	TEST(Test_RSA, math_big_uint_lshiftassign__IsCorrect)
 	{
 		// shifting by zero does nothing
@@ -488,7 +554,7 @@ namespace test
 		}
 	}
 
-	TEST(Test_RSA, math_mulassign__IsCorrect)
+	TEST(Test_RSA, math_mulassign__BigUint)
 	{
 		// zeros
 		{
@@ -543,6 +609,25 @@ namespace test
 			auto a = rsa::math::big_uint_8(43u);
 			auto b = rsa::math::big_uint_8(24892368u);
 			EXPECT_EQ(a *= b, 43u * 24892368u);
+		}
+	}
+
+	TEST(Test_RSA, math_mulassign__Value)
+	{
+		auto a = rsa::math::big_uint_16(utils::uint8_max);
+		EXPECT_EQ(a *= utils::uint8_max, std::uint32_t{ utils::uint8_max } *utils::uint8_max);
+	}
+
+	TEST(Test_RSA, math_mul__IsCorrect)
+	{
+		{
+			auto a = rsa::math::big_uint_16(utils::uint8_max);
+			auto b = rsa::math::big_uint_16(utils::uint16_max);
+			EXPECT_EQ(a * b, std::uint32_t{ utils::uint16_max } *utils::uint8_max);
+		}
+		{
+			auto a = rsa::math::big_uint_16(utils::uint8_max);
+			EXPECT_EQ(a * utils::uint32_max, std::uint64_t{ utils::uint32_max } * utils::uint8_max);
 		}
 	}
 
@@ -651,13 +736,18 @@ namespace test
 #pragma endregion
 
 	// TDOO (now):
+		// bitwise logic operators
+		// /=
+		// modulus (division w/ remainder)
 		// test everything with bool (it's an unsigned type!)
+		// test using lhs *= lhs, lhs += lhs, etc.
 		// move math operations out of the class.
-		// string constructor
-		// to_string()
-		// *= /=
+		// think about some sort of view thing (means we don't need to do shifts for temporaries
+		// division with remainder
 
 	// TODO (sometime):
-		// construct from big_uints with other block sizes
+		// biguint versions of bitshift
+		// construct from biguints with other block sizes
+		// string constructor and to_string()
 
 } // test

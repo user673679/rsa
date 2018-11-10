@@ -157,7 +157,9 @@
     <ClCompile Include="test__rsa_math__big_uint.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="rsa_math_meta__type_traits.h" />
     <ClInclude Include="rsa_math__big_uint.h" />
+    <ClInclude Include="rsa_math_ops__operations.h" />
     <ClInclude Include="rsa_math__primes.h" />
     <ClInclude Include="rsa__utils.h" />
     <ClInclude Include="test_utils__uint_max.h" />

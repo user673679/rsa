@@ -27,5 +27,11 @@
     <ClInclude Include="test_utils__uint_max.h">
       <Filter>test</Filter>
     </ClInclude>
+    <ClInclude Include="rsa_math_ops__operations.h">
+      <Filter>rsa</Filter>
+    </ClInclude>
+    <ClInclude Include="rsa_math_meta__type_traits.h">
+      <Filter>rsa</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
