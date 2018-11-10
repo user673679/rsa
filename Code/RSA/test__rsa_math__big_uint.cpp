@@ -682,6 +682,37 @@ namespace test
 		EXPECT_EQ(908734u / rsa::math::big_uint_16(utils::uint64_max), 0u);
 	}
 
+	TEST(Test_RSA, math_increment)
+	{
+		{
+			auto n = rsa::math::big_uint_16(23u);
+			EXPECT_EQ(++n, 24u);
+			EXPECT_EQ(n, 24u);
+		}
+		{
+			auto n = rsa::math::big_uint_16(23u);
+			EXPECT_EQ(n++, 23u);
+			EXPECT_EQ(n, 24u);
+		}
+	}
+
+	TEST(Test_RSA, math_decrement)
+	{
+		{
+			auto n = rsa::math::big_uint_16(23u);
+			EXPECT_EQ(--n, 22u);
+			EXPECT_EQ(n, 22u);
+		}
+		{
+			auto n = rsa::math::big_uint_16(23u);
+			EXPECT_EQ(n--, 23u);
+			EXPECT_EQ(n, 22u);
+		}
+
+		EXPECT_THROW(--rsa::math::big_uint_8(), std::invalid_argument);
+		EXPECT_THROW(rsa::math::big_uint_8()--, std::invalid_argument);
+	}
+
 #pragma endregion
 
 #pragma region comparison
@@ -787,7 +818,6 @@ namespace test
 #pragma endregion
 
 	// TDOO (now):
-		// ++ pre / post -- pre / post
 		// modulus (division w/ remainder)
 		// test everything with bool (it's an unsigned type!)
 		// test using lhs *= lhs, lhs += lhs, etc.

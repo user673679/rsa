@@ -108,6 +108,12 @@ namespace rsa
 			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
 			big_uint& operator/=(uint_t n);
 
+			big_uint& operator++();
+			big_uint operator++(int);
+
+			big_uint& operator--();
+			big_uint operator--(int);
+
 #pragma endregion
 
 		private:
@@ -329,6 +335,34 @@ namespace rsa
 		big_uint<block_t>& big_uint<block_t>::operator/=(uint_t n)
 		{
 			return operator/=(big_uint(n));
+		}
+
+		template<class block_t>
+		big_uint<block_t>& big_uint<block_t>::operator++()
+		{
+			return operator+=(1u);
+		}
+
+		template<class block_t>
+		big_uint<block_t> big_uint<block_t>::operator++(int)
+		{
+			auto temp = *this;
+			operator++();
+			return temp;
+		}
+
+		template<class block_t>
+		big_uint<block_t>& big_uint<block_t>::operator--()
+		{
+			return operator-=(1u);
+		}
+
+		template<class block_t>
+		big_uint<block_t> big_uint<block_t>::operator--(int)
+		{
+			auto temp = *this;
+			operator--();
+			return temp;
 		}
 
 #pragma endregion
