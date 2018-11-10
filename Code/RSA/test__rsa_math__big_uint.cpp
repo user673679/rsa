@@ -209,7 +209,7 @@ namespace test
 
 #pragma region bitwise operators
 
-	TEST(Test_RSA, math_big_uint_bit_and__IsCorrect)
+	TEST(Test_RSA, math_big_uint_bit_and_assign__IsCorrect)
 	{
 		{
 			auto zero = rsa::math::big_uint_32(0u);
@@ -231,7 +231,13 @@ namespace test
 		}
 	}
 
-	TEST(Test_RSA, math_big_uint_bit_or__IsCorrect)
+	TEST(Test_RSA, math_big_uint_bit_and__IsCorrect)
+	{
+		auto a = rsa::math::big_uint_8(123987u);
+		EXPECT_EQ(a & 19787u, std::uint32_t{ 123987u } & 19787u);
+	}
+
+	TEST(Test_RSA, math_big_uint_bit_or_assign__IsCorrect)
 	{
 		{
 			auto zero = rsa::math::big_uint_32(0u);
@@ -253,7 +259,13 @@ namespace test
 		}
 	}
 
-	TEST(Test_RSA, math_big_uint_bit_xor__IsCorrect)
+	TEST(Test_RSA, math_big_uint_bit_or__IsCorrect)
+	{
+		auto a = rsa::math::big_uint_8(127u);
+		EXPECT_EQ(a | 19787u, std::uint32_t{ 127u } | 19787u);
+	}
+
+	TEST(Test_RSA, math_big_uint_bit_xor_assign__IsCorrect)
 	{
 		{
 			auto zero = rsa::math::big_uint_32(0u);
@@ -275,7 +287,13 @@ namespace test
 		}
 	}
 
-	TEST(Test_RSA, math_big_uint_lshiftassign__IsCorrect)
+	TEST(Test_RSA, math_big_uint_bit_xor__IsCorrect)
+	{
+		auto a = rsa::math::big_uint_8(127u);
+		EXPECT_EQ(a ^ 19787u, std::uint32_t{ 127u } ^ 19787u);
+	}
+
+	TEST(Test_RSA, math_big_uint_lshift_assign__IsCorrect)
 	{
 		// shifting by zero does nothing
 		{
@@ -317,7 +335,7 @@ namespace test
 		EXPECT_EQ((n << 1u), (1u << 1u));
 	}
 
-	TEST(Test_RSA, math_big_uint_rshiftassign__IsCorrect)
+	TEST(Test_RSA, math_big_uint_rshift_assign__IsCorrect)
 	{
 		// shifting by zero does nothing
 		{

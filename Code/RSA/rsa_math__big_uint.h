@@ -459,16 +459,34 @@ namespace rsa
 			return (a &= b);
 		}
 
+		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		big_uint<block_t> operator&(big_uint<block_t> a, uint_t b)
+		{
+			return (a &= big_uint<block_t>(b));
+		}
+
 		template<class block_t>
 		big_uint<block_t> operator|(big_uint<block_t> a, big_uint<block_t> const& b)
 		{
 			return (a |= b);
 		}
 
+		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		big_uint<block_t> operator|(big_uint<block_t> a, uint_t b)
+		{
+			return (a |= big_uint<block_t>(b));
+		}
+
 		template<class block_t>
 		big_uint<block_t> operator^(big_uint<block_t> a, big_uint<block_t> const& b)
 		{
 			return (a ^= b);
+		}
+
+		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		big_uint<block_t> operator^(big_uint<block_t> a, uint_t b)
+		{
+			return (a ^= big_uint<block_t>(b));
 		}
 
 		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
