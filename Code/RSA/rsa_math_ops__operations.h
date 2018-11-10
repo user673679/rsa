@@ -324,11 +324,9 @@ namespace rsa
 						while ((n >= (dt << 1u)) && ++i)
 							dt <<= 1u;
 
-						q |= (1u << i);
+						q |= (big_uint<block_t>(1u) << i);
 						n -= dt;
 					}
-
-					return q;
 				}
 			}
 

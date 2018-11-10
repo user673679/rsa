@@ -203,8 +203,6 @@ namespace test
 		EXPECT_EQ((rsa::math::big_uint_32(max) + 1u).to_uint<std::uint64_t>(), std::uint64_t{ max } +1u);
 	}
 
-	// TODO: is_zero()
-
 #pragma endregion
 
 #pragma region bitwise operators
@@ -647,6 +645,41 @@ namespace test
 			auto a = rsa::math::big_uint_16(utils::uint8_max);
 			EXPECT_EQ(a * utils::uint32_max, std::uint64_t{ utils::uint32_max } * utils::uint8_max);
 		}
+		{
+			auto a = rsa::math::big_uint_16(utils::uint8_max);
+			EXPECT_EQ(utils::uint32_max * a, std::uint64_t{ utils::uint32_max } * utils::uint8_max);
+		}
+	}
+
+	TEST(Test_RSA, math_divassign__BigUintDivisionByZeroThrows)
+	{
+		EXPECT_THROW(rsa::math::big_uint_8(0u) /= rsa::math::big_uint_8(0u), std::invalid_argument);
+		EXPECT_THROW(rsa::math::big_uint_8(1u) /= rsa::math::big_uint_8(0u), std::invalid_argument);
+	}
+
+	TEST(Test_RSA, math_divassign__BigUint)
+	{
+		EXPECT_TRUE((rsa::math::big_uint_16(0u) /= rsa::math::big_uint_16(4u)).is_zero());
+		EXPECT_EQ(rsa::math::big_uint_16(127564u) /= rsa::math::big_uint_16(127564u), rsa::math::big_uint_16(1u));
+		EXPECT_TRUE((rsa::math::big_uint_8(utils::uint32_max) /= rsa::math::big_uint_8(std::uint64_t{ utils::uint32_max } +1u)).is_zero());
+
+		{
+			auto a = rsa::math::big_uint_64(8u);
+			auto b = rsa::math::big_uint_64(2u);
+			EXPECT_EQ(a /= b, 4u);
+		}
+		{
+			auto a = rsa::math::big_uint_8(utils::uint64_max);
+			auto b = rsa::math::big_uint_8(3u);
+			EXPECT_EQ(a /= b, utils::uint64_max / 3u);
+		}
+	}
+
+	TEST(Test_RSA, math_div__IsCorrect)
+	{
+		EXPECT_EQ(rsa::math::big_uint_32(64u) / rsa::math::big_uint_32(8u), 8u);
+		EXPECT_EQ(rsa::math::big_uint_8(257u) / 255u, 1u);
+		EXPECT_EQ(908734u / rsa::math::big_uint_16(utils::uint64_max), 0u);
 	}
 
 #pragma endregion
@@ -754,11 +787,11 @@ namespace test
 #pragma endregion
 
 	// TDOO (now):
-		// bitwise logic operators
-		// /=
+		// ++ pre / post -- pre / post
 		// modulus (division w/ remainder)
 		// test everything with bool (it's an unsigned type!)
 		// test using lhs *= lhs, lhs += lhs, etc.
+		// add more tests with 64 bit ints (will break accidental u32 stuff.
 		// move math operations out of the class.
 		// think about some sort of view thing (means we don't need to do shifts for temporaries
 		// division with remainder
