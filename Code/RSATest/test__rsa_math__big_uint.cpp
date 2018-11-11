@@ -95,16 +95,17 @@ namespace test
 
 #pragma region constructors
 
-	TEST(Test_RSA, math_big_uint_default_constructor__DataIsEmptySameAsZero)
+	TEST(Test_RSA, math_big_uint_default_constructor__IsZero)
 	{
 		{
 			auto n = rsa::math::big_uint_32();
 			EXPECT_TRUE(n.data().empty());
-			EXPECT_EQ(n, rsa::math::big_uint_32(std::uint32_t{ 0 }));
+			EXPECT_EQ(n, 0u);
+			EXPECT_TRUE(n.is_zero());
 		}
 	}
 
-	TEST(Test_RSA, math_big_uint_numeric_constructor__WorksWithLargerAndSmallerNumbers)
+	TEST(Test_RSA, math_big_uint_numeric_constructor)
 	{
 		auto a = rsa::math::big_uint_32(std::uint16_t{ 37 });
 		EXPECT_EQ(a.data().size(), 1u);
@@ -117,7 +118,7 @@ namespace test
 		EXPECT_EQ(a, b);
 	}
 
-	TEST(Test_RSA, math_big_uint_numeric_constructor__GivesCorrectBitPattern)
+	TEST(Test_RSA, math_big_uint_numeric_constructor__BitPattern)
 	{
 		{
 			auto n = rsa::math::big_uint_32(1u);
@@ -160,7 +161,7 @@ namespace test
 
 	// not testing copy / move (default)
 
-	TEST(Test_RSA, math_big_uint_value_assign__Works)
+	TEST(Test_RSA, math_big_uint_value_assign)
 	{
 		auto max = utils::uint64_max;
 		auto n = rsa::math::big_uint_32(5u);
@@ -195,7 +196,7 @@ namespace test
 		EXPECT_THROW((rsa::math::big_uint_32(max) + 1u).to_uint<std::uint32_t>(), std::range_error);
 	}
 
-	TEST(Test_RSA, math_big_uint_to_uint__ReturnsCorrectValueWhenInRange)
+	TEST(Test_RSA, math_big_uint_to_uint)
 	{
 		const auto max = utils::uint32_max;
 
@@ -278,7 +279,7 @@ namespace test
 		}
 	}
 
-	TEST(Test_RSA, math_big_uint_find_most_significant_bit)
+	TEST(Test_RSA, math_big_uint_get_most_significant_bit)
 	{
 		{
 			auto n = rsa::math::big_uint_64(0u);
@@ -298,7 +299,7 @@ namespace test
 
 #pragma region bitwise operators
 
-	TEST(Test_RSA, math_big_uint_bit_and_assign__IsCorrect)
+	TEST(Test_RSA, math_big_uint_bit_and_assign)
 	{
 		{
 			auto zero = rsa::math::big_uint_32(0u);
@@ -320,13 +321,13 @@ namespace test
 		}
 	}
 
-	TEST(Test_RSA, math_big_uint_bit_and__IsCorrect)
+	TEST(Test_RSA, math_big_uint_bit_and)
 	{
 		auto a = rsa::math::big_uint_8(123987u);
 		EXPECT_EQ(a & 19787u, std::uint32_t{ 123987u } & 19787u);
 	}
 
-	TEST(Test_RSA, math_big_uint_bit_or_assign__IsCorrect)
+	TEST(Test_RSA, math_big_uint_bit_or_assign)
 	{
 		{
 			auto zero = rsa::math::big_uint_32(0u);
@@ -348,13 +349,13 @@ namespace test
 		}
 	}
 
-	TEST(Test_RSA, math_big_uint_bit_or__IsCorrect)
+	TEST(Test_RSA, math_big_uint_bit_or)
 	{
 		auto a = rsa::math::big_uint_8(127u);
 		EXPECT_EQ(a | 19787u, std::uint32_t{ 127u } | 19787u);
 	}
 
-	TEST(Test_RSA, math_big_uint_bit_xor_assign__IsCorrect)
+	TEST(Test_RSA, math_big_uint_bit_xor_assign)
 	{
 		{
 			auto zero = rsa::math::big_uint_32(0u);
@@ -376,13 +377,13 @@ namespace test
 		}
 	}
 
-	TEST(Test_RSA, math_big_uint_bit_xor__IsCorrect)
+	TEST(Test_RSA, math_big_uint_bit_xor)
 	{
 		auto a = rsa::math::big_uint_8(127u);
 		EXPECT_EQ(a ^ 19787u, std::uint32_t{ 127u } ^ 19787u);
 	}
 
-	TEST(Test_RSA, math_big_uint_lshift_assign__IsCorrect)
+	TEST(Test_RSA, math_big_uint_lshift_assign)
 	{
 		// shifting by zero does nothing
 		{
@@ -418,13 +419,13 @@ namespace test
 		}
 	}
 
-	TEST(Test_RSA, math_big_uint_lshift__IsCorrect)
+	TEST(Test_RSA, math_big_uint_lshift)
 	{
 		auto n = rsa::math::big_uint_8(1u);
 		EXPECT_EQ((n << 1u), (1u << 1u));
 	}
 
-	TEST(Test_RSA, math_big_uint_rshift_assign__IsCorrect)
+	TEST(Test_RSA, math_big_uint_rshift_assign)
 	{
 		// shifting by zero does nothing
 		{
@@ -456,7 +457,7 @@ namespace test
 		}
 	}
 
-	TEST(Test_RSA, math_big_uint_rshift__IsCorrect)
+	TEST(Test_RSA, math_big_uint_rshift)
 	{
 		auto n = rsa::math::big_uint_8(1u);
 		EXPECT_TRUE((n >> 1u).is_zero());
@@ -466,7 +467,7 @@ namespace test
 
 #pragma region math operators
 
-	TEST(Test_RSA, math_addassign__BigUintIsCorrect)
+	TEST(Test_RSA, math_big_uint_addassign__BigUint)
 	{
 		// a (two blocks), b (two blocks), ends in carry
 		{
@@ -526,7 +527,7 @@ namespace test
 		}
 	}
 
-	TEST(Test_RSA, math_addassign__ValueIsCorrect)
+	TEST(Test_RSA, math_big_uint_addassign__Value)
 	{
 		// assigning with zero
 		{
@@ -575,7 +576,7 @@ namespace test
 		}
 	}
 
-	TEST(Test_RSA, math_add__IsCorrect)
+	TEST(Test_RSA, math_big_uint_add)
 	{
 		{
 			auto n = rsa::math::big_uint_32(23u) + rsa::math::big_uint_32(78u);
@@ -596,13 +597,13 @@ namespace test
 		}
 	}
 
-	TEST(Test_RSA, math_subassign__SubtractingLargerNumberThrows)
+	TEST(Test_RSA, math_big_uint_subassign__InvalidArgumentsThrow)
 	{
 		EXPECT_THROW(rsa::math::big_uint_32(0u) -= rsa::math::big_uint_32(1u), std::invalid_argument);
 		EXPECT_THROW(rsa::math::big_uint_32(5u) -= rsa::math::big_uint_32(6u), std::invalid_argument);
 	}
 
-	TEST(Test_RSA, math_subassign__BigUintIsCorrect)
+	TEST(Test_RSA, math_big_uint_subassign__BigUint)
 	{
 		{
 			auto zero = rsa::math::big_uint_32(0u);
@@ -625,7 +626,7 @@ namespace test
 		}
 	}
 
-	TEST(Test_RSA, math_subassign__ValueIsCorrect)
+	TEST(Test_RSA, math_big_uint_subassign__Value)
 	{
 		{
 			auto max64 = utils::uint64_max;
@@ -641,7 +642,7 @@ namespace test
 		}
 	}
 
-	TEST(Test_RSA, math_sub__IsCorrect)
+	TEST(Test_RSA, math_big_uint_sub)
 	{
 		{
 			auto a = rsa::math::big_uint_32(2389u);
@@ -661,7 +662,7 @@ namespace test
 		}
 	}
 
-	TEST(Test_RSA, math_mulassign__BigUint)
+	TEST(Test_RSA, math_big_uint_mulassign__BigUint)
 	{
 		// zeros
 		{
@@ -719,13 +720,13 @@ namespace test
 		}
 	}
 
-	TEST(Test_RSA, math_mulassign__Value)
+	TEST(Test_RSA, math_big_uint_mulassign__Value)
 	{
 		auto a = rsa::math::big_uint_16(utils::uint8_max);
 		EXPECT_EQ(a *= utils::uint8_max, std::uint32_t{ utils::uint8_max } *utils::uint8_max);
 	}
 
-	TEST(Test_RSA, math_mul__IsCorrect)
+	TEST(Test_RSA, math_big_uint_mul)
 	{
 		{
 			auto a = rsa::math::big_uint_16(utils::uint8_max);
@@ -742,13 +743,13 @@ namespace test
 		}
 	}
 
-	TEST(Test_RSA, math_divassign__BigUintDivisionByZeroThrows)
+	TEST(Test_RSA, math_big_uint_divassign__DivisionByZeroThrows)
 	{
 		EXPECT_THROW(rsa::math::big_uint_8(0u) /= rsa::math::big_uint_8(0u), std::invalid_argument);
 		EXPECT_THROW(rsa::math::big_uint_8(1u) /= rsa::math::big_uint_8(0u), std::invalid_argument);
 	}
 
-	TEST(Test_RSA, math_divassign__BigUint)
+	TEST(Test_RSA, math_big_uint_divassign__BigUint)
 	{
 		EXPECT_TRUE((rsa::math::big_uint_16(0u) /= rsa::math::big_uint_16(4u)).is_zero());
 		EXPECT_EQ(rsa::math::big_uint_16(127564u) /= rsa::math::big_uint_16(127564u), rsa::math::big_uint_16(1u));
@@ -776,20 +777,26 @@ namespace test
 		}
 	}
 
-	TEST(Test_RSA, math_div__IsCorrect)
+	TEST(Test_RSA, math_big_uint_divassign__Value)
+	{
+		auto a = rsa::math::big_uint_16(utils::uint8_max);
+		EXPECT_EQ(a /= 2u, utils::uint8_max / 2u);
+	}
+
+	TEST(Test_RSA, math_big_uint_div)
 	{
 		EXPECT_EQ(rsa::math::big_uint_32(64u) / rsa::math::big_uint_32(8u), 8u);
 		EXPECT_EQ(rsa::math::big_uint_8(257u) / 255u, 1u);
 		EXPECT_EQ(908734u / rsa::math::big_uint_16(utils::uint64_max), 0u);
 	}
 
-	TEST(Test_RSA, math_modassign__BigUintModulusByZeroThrows)
+	TEST(Test_RSA, math_big_uint_modassign__ModulusByZeroThrows)
 	{
 		EXPECT_THROW(rsa::math::big_uint_8(0u) %= rsa::math::big_uint_8(0u), std::invalid_argument);
 		EXPECT_THROW(rsa::math::big_uint_8(1u) %= rsa::math::big_uint_8(0u), std::invalid_argument);
 	}
 
-	TEST(Test_RSA, math_modassign__BigUint)
+	TEST(Test_RSA, math_big_uint_modassign__BigUint)
 	{
 		EXPECT_TRUE((rsa::math::big_uint_16(0u) %= rsa::math::big_uint_16(4u)).is_zero());
 		EXPECT_EQ(rsa::math::big_uint_16(127564u) %= rsa::math::big_uint_16(127564u), rsa::math::big_uint_16(0u));
@@ -817,14 +824,20 @@ namespace test
 		}
 	}
 
-	TEST(Test_RSA, math_mod__IsCorrect)
+	TEST(Test_RSA, math_big_uint_modassign__Value)
+	{
+		auto a = rsa::math::big_uint_16(utils::uint8_max);
+		EXPECT_EQ(a %= 2u, 1u);
+	}
+
+	TEST(Test_RSA, math_big_uint_mod)
 	{
 		EXPECT_EQ(rsa::math::big_uint_32(64u) % rsa::math::big_uint_32(8u), 0u);
 		EXPECT_EQ(rsa::math::big_uint_8(257u) % 255u, 2u);
 		EXPECT_EQ(908734u % rsa::math::big_uint_16(utils::uint64_max), 908734u);
 	}
 
-	TEST(Test_RSA, math_increment)
+	TEST(Test_RSA, math_big_uint_increment)
 	{
 		{
 			auto n = rsa::math::big_uint_16(23u);
@@ -838,7 +851,7 @@ namespace test
 		}
 	}
 
-	TEST(Test_RSA, math_decrement)
+	TEST(Test_RSA, math_big_uint_decrement)
 	{
 		{
 			auto n = rsa::math::big_uint_16(23u);
@@ -859,21 +872,21 @@ namespace test
 
 #pragma region comparison
 
-	TEST(Test_RSA, math_equality__IsCorrect)
+	TEST(Test_RSA, math_big_uint_equality)
 	{
 		EXPECT_TRUE(rsa::math::big_uint_32(53u) == rsa::math::big_uint_32(53u));
 		EXPECT_TRUE(rsa::math::big_uint_32(64u) == std::uint16_t{ 64u });
 		EXPECT_TRUE(std::uint8_t{ 12u } == rsa::math::big_uint_8(12u));
 	}
 
-	TEST(Test_RSA, math_inequality__IsCorrect)
+	TEST(Test_RSA, math_big_uint_inequality)
 	{
 		EXPECT_TRUE(rsa::math::big_uint_32(51u) != rsa::math::big_uint_32(53u));
 		EXPECT_TRUE(rsa::math::big_uint_32(64334u) != std::uint16_t{ 2u });
 		EXPECT_TRUE(std::uint8_t{ 12u } != rsa::math::big_uint_8(123u));
 	}
 
-	TEST(Test_RSA, math_lessthan__IsCorrect)
+	TEST(Test_RSA, math_big_uint_lessthan)
 	{
 		// same data sizes
 		{
@@ -894,7 +907,7 @@ namespace test
 		}
 	}
 
-	TEST(Test_RSA, math_greaterthan__IsCorrect)
+	TEST(Test_RSA, math_big_uint_greaterthan)
 	{
 		// same data sizes
 		{
@@ -915,7 +928,7 @@ namespace test
 		}
 	}
 
-	TEST(Test_RSA, math_lessthanequal__IsCorrect)
+	TEST(Test_RSA, math_big_uint_lessthanequal)
 	{
 		// same data sizes
 		{
@@ -936,7 +949,7 @@ namespace test
 		}
 	}
 
-	TEST(Test_RSA, math_greaterthanequal__IsCorrect)
+	TEST(Test_RSA, math_big_uint_greaterthanequal)
 	{
 		// same data sizes
 		{
@@ -960,7 +973,6 @@ namespace test
 #pragma endregion
 
 	// TDOO (now):
-		// make test names more consistent and remove redundant IsCorrect
 		// test everything with bool (it's an unsigned type!)
 		// test using lhs *= lhs, lhs += lhs, etc.
 		// add more tests with 64 bit ints (will break accidental u32 stuff).
