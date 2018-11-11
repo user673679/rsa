@@ -26,6 +26,7 @@ namespace rsa
 
 			using block_type = block_t;
 			using data_type = std::vector<block_type>;
+			using bit_index_type = std::size_t;
 
 #pragma region constructors
 
@@ -56,6 +57,12 @@ namespace rsa
 
 			bool is_zero() const;
 
+			bool get_bit(bit_index_type i) const;
+			void set_bit(bit_index_type i, bool value);
+			void flip_bit(bit_index_type i);
+
+			bit_index_type get_most_significant_bit() const;
+
 			data_type& data();
 			data_type const& data() const;
 
@@ -78,11 +85,9 @@ namespace rsa
 			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
 			big_uint& operator^=(uint_t n);
 
-			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
-			big_uint& operator<<=(uint_t n);
+			big_uint& operator<<=(bit_index_type n);
 
-			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
-			big_uint& operator>>=(uint_t n);
+			big_uint& operator>>=(bit_index_type n);
 
 #pragma endregion
 
@@ -193,6 +198,68 @@ namespace rsa
 		}
 
 		template<class block_t>
+		bool big_uint<block_t>::get_bit(bit_index_type i) const
+		{
+			auto block_index = i / meta::digits<block_type>();
+
+			if (m_data.size() <= block_index)
+				return false;
+
+			auto block_bit = i - (block_index * meta::digits<block_type>());
+			utils::die_if(block_bit >= meta::digits<block_type>());
+
+			return bool((m_data[block_index] >> block_bit) & 1u);
+		}
+
+		template<class block_t>
+		void big_uint<block_t>::set_bit(bit_index_type i, bool value)
+		{
+			auto block_index = i / meta::digits<block_type>();
+
+			if (m_data.size() <= block_index)
+				m_data.resize(block_index + 1u);
+
+			auto block_bit = i - (block_index * meta::digits<block_type>());
+			utils::die_if(block_bit >= meta::digits<block_type>());
+
+			auto mask = block_type(block_type{ 1u } << block_bit);
+			m_data[block_index] |= mask & block_type(block_type{ value } << block_bit);
+		}
+
+		template<class block_t>
+		void big_uint<block_t>::flip_bit(bit_index_type i)
+		{
+			auto block_index = i / meta::digits<block_type>();
+
+			if (m_data.size() <= block_index)
+				m_data.resize(block_index + 1u);
+
+			auto block_bit = i - (block_index * meta::digits<block_type>());
+			utils::die_if(block_bit >= meta::digits<block_type>());
+
+			auto mask = block_type(block_type{ 1u } << block_bit);
+			m_data[block_index] ^= mask;
+		}
+
+		template<class block_t>
+		typename big_uint<block_t>::bit_index_type big_uint<block_t>::get_most_significant_bit() const
+		{
+			if (is_zero())
+				throw std::logic_error("number must not be zero.");
+
+			auto block = m_data.back();
+			auto count = std::uint8_t{ 0u };
+
+			while (block != block_type{ 1u })
+			{
+				++count;
+				block >>= 1u;
+			}
+
+			return bit_index_type{ count + (m_data.size() - 1u) * meta::digits<block_type>() };
+		}
+
+		template<class block_t>
 		typename big_uint<block_t>::data_type& big_uint<block_t>::data()
 		{
 			return m_data;
@@ -262,16 +329,14 @@ namespace rsa
 		}
 
 		template<class block_t>
-		template<class uint_t, typename>
-		big_uint<block_t>& big_uint<block_t>::operator<<=(uint_t n)
+		big_uint<block_t>& big_uint<block_t>::operator<<=(bit_index_type n)
 		{
 			ops::lshift_assign(*this, n);
 			return *this;
 		}
 
 		template<class block_t>
-		template<class uint_t, typename>
-		big_uint<block_t>& big_uint<block_t>::operator>>=(uint_t n)
+		big_uint<block_t>& big_uint<block_t>::operator>>=(bit_index_type n)
 		{
 			ops::rshift_assign(*this, n);
 			return *this;

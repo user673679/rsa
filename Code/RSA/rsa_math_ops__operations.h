@@ -75,14 +75,13 @@ namespace rsa
 				utils::trim(a);
 			}
 
-			template<class block_t, class uint_t>
-			void lshift_assign(big_uint<block_t>& a, uint_t n)
+			template<class block_t>
+			void lshift_assign(big_uint<block_t>& a, typename big_uint<block_t>::bit_index_type n)
 			{
-				static_assert(meta::is_uint_v<uint_t>, "shift type must be an unsigned integer.");
-
+				using bit_index_t = big_uint<block_t>::bit_index_type;
 				constexpr auto block_digits = meta::digits<block_t>();
 
-				if (n == uint_t{ 0 })
+				if (n == bit_index_t{ 0 })
 					return;
 
 				if (a.is_zero())
@@ -96,7 +95,7 @@ namespace rsa
 
 					n -= (blocks * block_digits);
 
-					if (n == uint_t{ 0 })
+					if (n == bit_index_t{ 0 })
 						return;
 				}
 
@@ -122,14 +121,13 @@ namespace rsa
 				rsa::utils::die_if(utils::has_extra_empty_blocks(a));
 			}
 
-			template<class block_t, class uint_t>
-			void rshift_assign(big_uint<block_t>& a, uint_t n)
+			template<class block_t>
+			void rshift_assign(big_uint<block_t>& a, typename big_uint<block_t>::bit_index_type n)
 			{
-				static_assert(meta::is_uint_v<uint_t>, "shift type must be an unsigned integer.");
-
+				using bit_index_t = big_uint<block_t>::bit_index_type;
 				constexpr auto block_digits = meta::digits<block_t>();
 
-				if (n == uint_t{ 0 })
+				if (n == bit_index_t{ 0 })
 					return;
 
 				if (a.is_zero())
@@ -146,7 +144,7 @@ namespace rsa
 
 					n -= (blocks * block_digits);
 
-					if (n == uint_t{ 0 })
+					if (n == bit_index_t{ 0 })
 						return;
 				}
 
@@ -294,37 +292,17 @@ namespace rsa
 					auto& q = lhs;
 					rsa::utils::die_if(!q.is_zero());
 
-					//const auto find_msb = [] (big_uint<block_t> const& m)
-					//{
-					//	if (m.is_zero())
-					//		return std::size_t{ 0u };
-
-					//	auto block = m.data().back();
-					//	auto count = std::uint8_t{ 0u };
-
-					//	while (block != block_t{ 0u })
-					//	{
-					//		++count;
-					//		block >>= 1u;
-					//	}
-
-					//	return std::size_t{ count + m.data().size() * meta::digits<block_t>() };
-					//};
-
-					//d <<= (find_msb(n) - find_msb(d));
-
-					//if (d > n)
-					//	d >>= 1u;
-
 					while (n >= d)
 					{
-						auto i = std::size_t{ 0 };
-						auto dt = d;
+						auto nb = n.get_most_significant_bit();
+						auto db = d.get_most_significant_bit();
+						auto i = nb - db;
 
-						while ((n >= (dt << 1u)) && ++i)
-							dt <<= 1u;
+						// TODO: shift d (it's already a copy) and track the shift?
+						auto dt = d << i;
+						if (dt > n) { --i; dt >>= 1u; }
 
-						q |= (big_uint<block_t>(1u) << i);
+						q.set_bit(i, true);
 						n -= dt;
 					}
 				}

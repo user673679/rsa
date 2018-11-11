@@ -203,6 +203,97 @@ namespace test
 		EXPECT_EQ((rsa::math::big_uint_32(max) + 1u).to_uint<std::uint64_t>(), std::uint64_t{ max } +1u);
 	}
 
+	TEST(Test_RSA, math_big_uint_get_bit)
+	{
+		{
+			auto zero = rsa::math::big_uint_8(0u);
+			EXPECT_EQ(zero.get_bit(0u), false);
+			EXPECT_EQ(zero.get_bit(123585u), false);
+		}
+		{
+			auto one = rsa::math::big_uint_8(1u);
+			EXPECT_EQ(one.get_bit(0u), true);
+			EXPECT_EQ(one.get_bit(123585u), false);
+		}
+		{
+			auto n = rsa::math::big_uint_16(utils::uint32_max);
+			EXPECT_EQ(n.get_bit(0u), true);
+			EXPECT_EQ(n.get_bit(31u), true);
+			EXPECT_EQ(n.get_bit(32u), false);
+		}
+		{
+			auto n = rsa::math::big_uint_8(21u);
+			EXPECT_EQ(n.get_bit(0u), true);
+			EXPECT_EQ(n.get_bit(1u), false);
+			EXPECT_EQ(n.get_bit(2u), true);
+			EXPECT_EQ(n.get_bit(3u), false);
+			EXPECT_EQ(n.get_bit(4u), true);
+			EXPECT_EQ(n.get_bit(5u), false);
+		}
+	}
+
+	TEST(Test_RSA, math_big_uint_set_bit)
+	{
+		{
+			auto n = rsa::math::big_uint_8(0u);
+			n.set_bit(0u, true);
+			EXPECT_EQ(n, 1u);
+		}
+		{
+			auto n = rsa::math::big_uint_8(0u);
+			n.set_bit(0u, true);
+			n.set_bit(2u, true);
+			n.set_bit(4u, true);
+			EXPECT_EQ(n, 21u);
+		}
+		{
+			auto n = rsa::math::big_uint_8(0u);
+			for (auto i = 0u; i != 32u; ++i)
+				n.set_bit(i, true);
+			EXPECT_EQ(n, utils::uint32_max);
+		}
+	}
+
+	TEST(Test_RSA, math_big_uint_flip)
+	{
+		{
+			auto n = rsa::math::big_uint_8(0u);
+			n.flip_bit(0u);
+			EXPECT_EQ(n, 1u);
+		}
+		{
+			auto n = rsa::math::big_uint_8(0u);
+			n.flip_bit(0u);
+			n.flip_bit(2u);
+			n.flip_bit(4u);
+			EXPECT_EQ(n, 21u);
+		}
+		{
+			auto n = rsa::math::big_uint_16(21u);
+
+			for (auto i = 0u; i != 5u; ++i)
+				n.flip_bit(i);
+
+			EXPECT_EQ(n, 10u);
+		}
+	}
+
+	TEST(Test_RSA, math_big_uint_find_most_significant_bit)
+	{
+		{
+			auto n = rsa::math::big_uint_64(0u);
+			EXPECT_THROW(n.get_most_significant_bit(), std::logic_error);
+		}
+		{
+			auto n = rsa::math::big_uint_64(1u);
+			EXPECT_EQ(n.get_most_significant_bit(), 0u);
+		}
+		{
+			auto n = rsa::math::big_uint_64(21u);
+			EXPECT_EQ(n.get_most_significant_bit(), 4u);
+		}
+	}
+
 #pragma endregion
 
 #pragma region bitwise operators
@@ -669,9 +760,19 @@ namespace test
 			EXPECT_EQ(a /= b, 4u);
 		}
 		{
+			auto a = rsa::math::big_uint_32(13u);
+			auto b = rsa::math::big_uint_32(3u);
+			EXPECT_EQ(a /= b, 4u);
+		}
+		{
 			auto a = rsa::math::big_uint_8(utils::uint64_max);
 			auto b = rsa::math::big_uint_8(3u);
 			EXPECT_EQ(a /= b, utils::uint64_max / 3u);
+		}
+		{
+			auto a = rsa::math::big_uint_16(5u);
+			auto b = rsa::math::big_uint_16(3u);
+			EXPECT_EQ(a /= b, 1u);
 		}
 	}
 
@@ -821,13 +922,12 @@ namespace test
 		// modulus (division w/ remainder)
 		// test everything with bool (it's an unsigned type!)
 		// test using lhs *= lhs, lhs += lhs, etc.
-		// add more tests with 64 bit ints (will break accidental u32 stuff.
+		// add more tests with 64 bit ints (will break accidental u32 stuff).
 		// move math operations out of the class.
-		// think about some sort of view thing (means we don't need to do shifts for temporaries
-		// division with remainder
+		// think about some sort of view thing (means we don't need to do shifts for temporaries)
 
 	// TODO (sometime):
-		// biguint versions of bitshift
+		// support indexing of bits with big_uint instead of size_t?
 		// construct from biguints with other block sizes
 		// string constructor and to_string()
 
