@@ -28,4 +28,18 @@ static void BM_RSA_division(benchmark::State& state)
 
 BENCHMARK(BM_RSA_division)->Range(8u, 16384u)->Complexity()->Unit(benchmark::kMicrosecond);
 
+
+#include "rsa_math__primes.h"
+
+static void BM_RSA_generate_prime(benchmark::State& state)
+{
+	auto rng = std::mt19937_64();
+
+	for (auto _ : state)
+		benchmark::DoNotOptimize(rsa::math::generate_prime<std::uint32_t>(rng, state.range(0)));
+}
+
+BENCHMARK(BM_RSA_generate_prime)->RangeMultiplier(2u)->Range(2u, 64u)->Complexity()->Unit(benchmark::kMicrosecond);
+
+
 BENCHMARK_MAIN();

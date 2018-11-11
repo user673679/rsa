@@ -9,6 +9,10 @@
     <ClCompile Include="test__rsa_math__big_uint.cpp">
       <Filter>test</Filter>
     </ClCompile>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="test__rsa_math__primes.cpp">
+      <Filter>test</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="test_utils__uint_max.h">
