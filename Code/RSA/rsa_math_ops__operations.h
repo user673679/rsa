@@ -292,32 +292,13 @@ namespace rsa
 					auto& q = lhs;
 					rsa::utils::die_if(!q.is_zero());
 
-					//auto i = (n.get_most_significant_bit() - d.get_most_significant_bit());
-					//auto dt = d << i;
-					//if (dt > n) { --i; dt >>= 1u; }
-
-					//while (n >= d)
-					//{
-					//	while (dt > n && i != 0u) { --i; dt >>= 1u; }
-
-					//	q.set_bit(i, true);
-					//	n -= dt;
-					//}
-
-					auto nb = n.get_most_significant_bit();
-					auto db = d.get_most_significant_bit();
-					auto i = nb - db;
+					auto i = (n.get_most_significant_bit() - d.get_most_significant_bit());
 					auto dt = d << i;
 					if (dt > n) { --i; dt >>= 1u; }
 
 					while (n >= d)
 					{
-						auto nb2 = n.get_most_significant_bit();
-						auto shift = i - std::min(nb2 - db, i);
-
-						i -= shift;
-						dt >>= shift;
-						if (dt > n) { --i; dt >>= 1u; }
+						while (dt > n && i != 0u) { --i; dt >>= 1u; }
 
 						q.set_bit(i, true);
 						n -= dt;
