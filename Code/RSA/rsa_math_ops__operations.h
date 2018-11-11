@@ -306,6 +306,37 @@ namespace rsa
 				}
 			}
 
+			template<class block_t>
+			void mod_assign(big_uint<block_t>& lhs, big_uint<block_t> const& rhs)
+			{
+				// similar to division, but lhs is the numerator, not the quotient.
+
+				if (rhs.is_zero())
+					throw std::invalid_argument("divisor cannot be zero.");
+
+				if (lhs < rhs) { return; }
+				if (lhs == rhs) { lhs.data().clear(); return; }
+
+				{
+					const auto d = rhs;
+					auto& n = lhs;
+					auto q = big_uint<block_t>();
+					rsa::utils::die_if(!q.is_zero());
+
+					auto i = (n.get_most_significant_bit() - d.get_most_significant_bit());
+					auto dt = d << i;
+					if (dt > n) { --i; dt >>= 1u; }
+
+					while (n >= d)
+					{
+						while (dt > n && i != 0u) { --i; dt >>= 1u; }
+
+						q.set_bit(i, true);
+						n -= dt;
+					}
+				}
+			}
+
 		} // ops
 
 	} // math

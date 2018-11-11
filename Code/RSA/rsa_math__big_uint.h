@@ -113,6 +113,11 @@ namespace rsa
 			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
 			big_uint& operator/=(uint_t n);
 
+			big_uint& operator%=(big_uint b);
+
+			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+			big_uint& operator%=(uint_t n);
+
 			big_uint& operator++();
 			big_uint operator++(int);
 
@@ -403,6 +408,20 @@ namespace rsa
 		}
 
 		template<class block_t>
+		big_uint<block_t>& big_uint<block_t>::operator%=(big_uint b)
+		{
+			ops::mod_assign(*this, b);
+			return *this;
+		}
+
+		template<class block_t>
+		template<class uint_t, typename>
+		big_uint<block_t>& big_uint<block_t>::operator%=(uint_t n)
+		{
+			return operator%=(big_uint(n));
+		}
+
+		template<class block_t>
 		big_uint<block_t>& big_uint<block_t>::operator++()
 		{
 			return operator+=(1u);
@@ -674,6 +693,24 @@ namespace rsa
 		big_uint<block_t> operator/(big_uint<block_t> a, big_uint<block_t> const& b)
 		{
 			return (a /= b);
+		}
+
+		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		big_uint<block_t> operator%(big_uint<block_t> a, uint_t b)
+		{
+			return (a %= big_uint<block_t>(b));
+		}
+
+		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		big_uint<block_t> operator%(uint_t a, big_uint<block_t> const& b)
+		{
+			return (big_uint<block_t>(a) %= b);
+		}
+
+		template<class block_t>
+		big_uint<block_t> operator%(big_uint<block_t> a, big_uint<block_t> const& b)
+		{
+			return (a %= b);
 		}
 
 #pragma endregion

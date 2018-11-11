@@ -783,6 +783,47 @@ namespace test
 		EXPECT_EQ(908734u / rsa::math::big_uint_16(utils::uint64_max), 0u);
 	}
 
+	TEST(Test_RSA, math_modassign__BigUintModulusByZeroThrows)
+	{
+		EXPECT_THROW(rsa::math::big_uint_8(0u) %= rsa::math::big_uint_8(0u), std::invalid_argument);
+		EXPECT_THROW(rsa::math::big_uint_8(1u) %= rsa::math::big_uint_8(0u), std::invalid_argument);
+	}
+
+	TEST(Test_RSA, math_modassign__BigUint)
+	{
+		EXPECT_TRUE((rsa::math::big_uint_16(0u) %= rsa::math::big_uint_16(4u)).is_zero());
+		EXPECT_EQ(rsa::math::big_uint_16(127564u) %= rsa::math::big_uint_16(127564u), rsa::math::big_uint_16(0u));
+		EXPECT_EQ(rsa::math::big_uint_8(utils::uint32_max) %= rsa::math::big_uint_8(std::uint64_t{ utils::uint32_max } + 1u), utils::uint32_max);
+
+		{
+			auto a = rsa::math::big_uint_64(8u);
+			auto b = rsa::math::big_uint_64(2u);
+			EXPECT_EQ(a %= b, 0u);
+		}
+		{
+			auto a = rsa::math::big_uint_32(13u);
+			auto b = rsa::math::big_uint_32(3u);
+			EXPECT_EQ(a %= b, 1u);
+		}
+		{
+			auto a = rsa::math::big_uint_8(utils::uint64_max);
+			auto b = rsa::math::big_uint_8(3u);
+			EXPECT_EQ(a %= b, utils::uint64_max % 3u);
+		}
+		{
+			auto a = rsa::math::big_uint_16(5u);
+			auto b = rsa::math::big_uint_16(3u);
+			EXPECT_EQ(a %= b, 2u);
+		}
+	}
+
+	TEST(Test_RSA, math_mod__IsCorrect)
+	{
+		EXPECT_EQ(rsa::math::big_uint_32(64u) % rsa::math::big_uint_32(8u), 0u);
+		EXPECT_EQ(rsa::math::big_uint_8(257u) % 255u, 2u);
+		EXPECT_EQ(908734u % rsa::math::big_uint_16(utils::uint64_max), 908734u);
+	}
+
 	TEST(Test_RSA, math_increment)
 	{
 		{
@@ -919,12 +960,11 @@ namespace test
 #pragma endregion
 
 	// TDOO (now):
-		// modulus (division w/ remainder)
+		// make test names more consistent and remove redundant IsCorrect
 		// test everything with bool (it's an unsigned type!)
 		// test using lhs *= lhs, lhs += lhs, etc.
 		// add more tests with 64 bit ints (will break accidental u32 stuff).
 		// move math operations out of the class.
-		// think about some sort of view thing (means we don't need to do shifts for temporaries)
 
 	// TODO (sometime):
 		// support indexing of bits with big_uint instead of size_t?
