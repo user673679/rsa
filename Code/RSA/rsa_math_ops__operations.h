@@ -292,19 +292,34 @@ namespace rsa
 					auto& q = lhs;
 					rsa::utils::die_if(!q.is_zero());
 
+					// 1:
+					//while (n >= d)
+					//{
+					//	auto nb = n.get_most_significant_bit();
+					//	auto db = d.get_most_significant_bit();
+					//	auto i = nb - db;
+
+					//	auto dt = d << i;
+					//	if (dt > n) { --i; dt >>= 1u; }
+
+					//	q.set_bit(i, true);
+					//	n -= dt;
+					//}
+
+					// 2:
+					auto i = (n.get_most_significant_bit() - d.get_most_significant_bit());
+					auto dt = d << i;
+					if (dt > n) { --i; dt >>= 1u; }
+
 					while (n >= d)
 					{
-						auto nb = n.get_most_significant_bit();
-						auto db = d.get_most_significant_bit();
-						auto i = nb - db;
-
-						// TODO: shift d (it's already a copy) and track the shift?
-						auto dt = d << i;
-						if (dt > n) { --i; dt >>= 1u; }
+						while (dt > n && i != 0u) { --i; dt >>= 1u; }
 
 						q.set_bit(i, true);
 						n -= dt;
 					}
+
+					// 3: find the next shift rather than shifting dt down by one every time
 				}
 			}
 
