@@ -26,6 +26,6 @@ static void BM_RSA_division(benchmark::State& state)
 	}
 }
 
-BENCHMARK(BM_RSA_division)->Range(8u, 8192u)->Complexity()->Unit(benchmark::kMicrosecond);
+BENCHMARK(BM_RSA_division)->Range(8u, 16384u)->Complexity()->Unit(benchmark::kMicrosecond);
 
 BENCHMARK_MAIN();

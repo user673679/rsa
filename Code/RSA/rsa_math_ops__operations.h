@@ -201,7 +201,7 @@ namespace rsa
 				// add corresponding blocks. in case of overflow, carry one to the next block.
 				for (auto i = std::size_t{ 0 }; i != max_size; ++i)
 				{
-					auto const& b_block = get_block(b.data(), i);
+					const auto b_block = get_block(b.data(), i);
 					auto& a_block = get_block_extend(a.data(), i);
 
 					// use bitwise or so both sides are evaluated.
@@ -240,7 +240,7 @@ namespace rsa
 				// add corresponding blocks. in case of underflow, carry one to the next block.
 				for (auto i = std::size_t{ 0 }; i != a.data().size(); ++i)
 				{
-					auto const& b_block = get_block(b.data(), i);
+					const auto b_block = get_block(b.data(), i);
 					auto& a_block = a.data()[i];
 
 					// use bitwise or so both sides are evaluated.
@@ -287,39 +287,41 @@ namespace rsa
 				if (lhs == rhs) { lhs.data().clear(); lhs.data().push_back(1u); return; }
 
 				{
-					auto d = rhs;
+					const auto d = rhs;
 					auto n = std::move(lhs);
 					auto& q = lhs;
 					rsa::utils::die_if(!q.is_zero());
 
-					// 1:
+					//auto i = (n.get_most_significant_bit() - d.get_most_significant_bit());
+					//auto dt = d << i;
+					//if (dt > n) { --i; dt >>= 1u; }
+
 					//while (n >= d)
 					//{
-					//	auto nb = n.get_most_significant_bit();
-					//	auto db = d.get_most_significant_bit();
-					//	auto i = nb - db;
-
-					//	auto dt = d << i;
-					//	if (dt > n) { --i; dt >>= 1u; }
+					//	while (dt > n && i != 0u) { --i; dt >>= 1u; }
 
 					//	q.set_bit(i, true);
 					//	n -= dt;
 					//}
 
-					// 2:
-					auto i = (n.get_most_significant_bit() - d.get_most_significant_bit());
+					auto nb = n.get_most_significant_bit();
+					auto db = d.get_most_significant_bit();
+					auto i = nb - db;
 					auto dt = d << i;
 					if (dt > n) { --i; dt >>= 1u; }
 
 					while (n >= d)
 					{
-						while (dt > n && i != 0u) { --i; dt >>= 1u; }
+						auto nb2 = n.get_most_significant_bit();
+						auto shift = i - std::min(nb2 - db, i);
+
+						i -= shift;
+						dt >>= shift;
+						if (dt > n) { --i; dt >>= 1u; }
 
 						q.set_bit(i, true);
 						n -= dt;
 					}
-
-					// 3: find the next shift rather than shifting dt down by one every time
 				}
 			}
 
