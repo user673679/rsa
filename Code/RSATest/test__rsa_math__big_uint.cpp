@@ -107,15 +107,17 @@ namespace test
 
 	TEST(Test_RSA, math_big_uint_numeric_constructor)
 	{
-		auto a = rsa::math::big_uint_32(std::uint16_t{ 37 });
-		EXPECT_EQ(a.data().size(), 1u);
-		EXPECT_EQ(a.data()[0], std::uint32_t{ 37 });
+		{
+			auto a = rsa::math::big_uint_32(std::uint16_t{ 37 });
+			EXPECT_EQ(a.data().size(), 1u);
+			EXPECT_EQ(a.data()[0], 37u);
 
-		auto b = rsa::math::big_uint_32(std::uint64_t{ 37 });
-		EXPECT_EQ(b.data().size(), 1u);
-		EXPECT_EQ(b.data()[0], std::uint32_t{ 37 });
+			auto b = rsa::math::big_uint_32(std::uint64_t{ 37 });
+			EXPECT_EQ(b.data().size(), 1u);
+			EXPECT_EQ(b.data()[0], 37u);
 
-		EXPECT_EQ(a, b);
+			EXPECT_EQ(a, b);
+		}
 	}
 
 	TEST(Test_RSA, math_big_uint_numeric_constructor__BitPattern)
@@ -973,7 +975,6 @@ namespace test
 #pragma endregion
 
 	// TDOO (now):
-		// test everything with bool (it's an unsigned type!)
 		// test using lhs *= lhs, lhs += lhs, etc.
 		// add more tests with 64 bit ints (will break accidental u32 stuff).
 		// move math operations out of the class.

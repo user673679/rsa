@@ -13,7 +13,7 @@ namespace rsa
 		{
 
 			template<class uint_t>
-			constexpr bool is_uint_v = (std::is_integral_v<uint_t> && std::is_unsigned_v<uint_t>);
+			constexpr bool is_uint_v = (std::is_integral_v<uint_t> && std::is_unsigned_v<uint_t> && !std::is_same_v<uint_t, bool>);
 
 			template<class uint_t>
 			using enable_if_uint_t = std::enable_if_t<is_uint_v<uint_t>>;
