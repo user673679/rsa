@@ -18,9 +18,51 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\benchmark\benchmark.h" />
+    <ClInclude Include="src\arraysize.h" />
+    <ClInclude Include="src\benchmark_api_internal.h" />
+    <ClInclude Include="src\benchmark_register.h" />
+    <ClInclude Include="src\benchmark_runner.h" />
+    <ClInclude Include="src\check.h" />
+    <ClInclude Include="src\colorprint.h" />
+    <ClInclude Include="src\commandlineflags.h" />
+    <ClInclude Include="src\complexity.h" />
+    <ClInclude Include="src\counter.h" />
+    <ClInclude Include="src\cycleclock.h" />
+    <ClInclude Include="src\internal_macros.h" />
+    <ClInclude Include="src\log.h" />
+    <ClInclude Include="src\mutex.h" />
+    <ClInclude Include="src\re.h" />
+    <ClInclude Include="src\sleep.h" />
+    <ClInclude Include="src\statistics.h" />
+    <ClInclude Include="src\string_util.h" />
+    <ClInclude Include="src\thread_manager.h" />
+    <ClInclude Include="src\thread_timer.h" />
+    <ClInclude Include="src\timers.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\benchmark.cc" />
+    <ClCompile Include="src\benchmark_api_internal.cc" />
+    <ClCompile Include="src\benchmark_register.cc" />
+    <ClCompile Include="src\benchmark_runner.cc" />
+    <ClCompile Include="src\colorprint.cc" />
+    <ClCompile Include="src\commandlineflags.cc" />
+    <ClCompile Include="src\complexity.cc" />
+    <ClCompile Include="src\console_reporter.cc" />
+    <ClCompile Include="src\counter.cc" />
+    <ClCompile Include="src\csv_reporter.cc" />
+    <ClCompile Include="src\json_reporter.cc" />
+    <ClCompile Include="src\reporter.cc" />
+    <ClCompile Include="src\sleep.cc" />
+    <ClCompile Include="src\statistics.cc" />
+    <ClCompile Include="src\string_util.cc" />
+    <ClCompile Include="src\sysinfo.cc" />
+    <ClCompile Include="src\timers.cc" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{05963DEC-22C2-4F54-B4AF-E18D0136C624}</ProjectGuid>
-    <RootNamespace>RSA</RootNamespace>
+    <ProjectGuid>{5B6986B2-5DC5-40BB-99ED-CA175F094A09}</ProjectGuid>
+    <RootNamespace>GoogleTestWindows</RootNamespace>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -89,14 +131,13 @@
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <TreatWarningAsError>true</TreatWarningAsError>
+      <AdditionalIncludeDirectories>$(ProjectDir)include\;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(SolutionDir)Code\GoogleTest\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;HAVE_STD_REGEX;HAVE_STEADY_CLOCK;</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4800;4244;</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
-      <AdditionalDependencies>GoogleTest.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)Deploy\GoogleTest\$(Platform)\$(Configuration)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -104,14 +145,13 @@
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <TreatWarningAsError>true</TreatWarningAsError>
+      <AdditionalIncludeDirectories>$(ProjectDir)include\;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(SolutionDir)Code\GoogleTest\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;HAVE_STD_REGEX;HAVE_STEADY_CLOCK;</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4800;4244;</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
-      <AdditionalDependencies>GoogleTest.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)Deploy\GoogleTest\$(Platform)\$(Configuration)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -121,16 +161,15 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <TreatWarningAsError>true</TreatWarningAsError>
+      <AdditionalIncludeDirectories>$(ProjectDir)include\;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(SolutionDir)Code\GoogleTest\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;HAVE_STD_REGEX;HAVE_STEADY_CLOCK;NDEBUG;</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4800;4244;</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <SubSystem>Console</SubSystem>
-      <AdditionalDependencies>GoogleTest.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)Deploy\GoogleTest\$(Platform)\$(Configuration)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -140,28 +179,17 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <TreatWarningAsError>true</TreatWarningAsError>
+      <AdditionalIncludeDirectories>$(ProjectDir)include\;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(SolutionDir)Code\GoogleTest\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;HAVE_STD_REGEX;HAVE_STEADY_CLOCK;NDEBUG;</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4800;4244;</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <SubSystem>Console</SubSystem>
-      <AdditionalDependencies>GoogleTest.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)Deploy\GoogleTest\$(Platform)\$(Configuration)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClInclude Include="rsa_math_meta__type_traits.h" />
-    <ClInclude Include="rsa_math__big_uint.h" />
-    <ClInclude Include="rsa_math_ops__operations.h" />
-    <ClInclude Include="rsa_math__primes.h" />
-    <ClInclude Include="rsa__utils.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="rsa__utils.cpp" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

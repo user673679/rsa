@@ -4,11 +4,22 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RSA", "Code\RSA\RSA.vcxproj", "{05963DEC-22C2-4F54-B4AF-E18D0136C624}"
-	ProjectSection(ProjectDependencies) = postProject
-		{294B6E31-64DA-4B36-B3C8-902048FF9DAE} = {294B6E31-64DA-4B36-B3C8-902048FF9DAE}
-	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GoogleTest", "Code\GoogleTest\GoogleTest.vcxproj", "{294B6E31-64DA-4B36-B3C8-902048FF9DAE}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GoogleBench", "Code\GoogleBench\GoogleBench.vcxproj", "{5B6986B2-5DC5-40BB-99ED-CA175F094A09}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RSATest", "Code\RSATest\RSATest.vcxproj", "{21191DA4-14D6-41C0-8559-B760E1BA1AAD}"
+	ProjectSection(ProjectDependencies) = postProject
+		{294B6E31-64DA-4B36-B3C8-902048FF9DAE} = {294B6E31-64DA-4B36-B3C8-902048FF9DAE}
+		{05963DEC-22C2-4F54-B4AF-E18D0136C624} = {05963DEC-22C2-4F54-B4AF-E18D0136C624}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RSABench", "Code\RSABench\RSABench.vcxproj", "{703AA31A-AC79-430F-8F64-49DEEF5DB636}"
+	ProjectSection(ProjectDependencies) = postProject
+		{5B6986B2-5DC5-40BB-99ED-CA175F094A09} = {5B6986B2-5DC5-40BB-99ED-CA175F094A09}
+		{05963DEC-22C2-4F54-B4AF-E18D0136C624} = {05963DEC-22C2-4F54-B4AF-E18D0136C624}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -34,6 +45,30 @@ Global
 		{294B6E31-64DA-4B36-B3C8-902048FF9DAE}.Release|x64.Build.0 = Release|x64
 		{294B6E31-64DA-4B36-B3C8-902048FF9DAE}.Release|x86.ActiveCfg = Release|Win32
 		{294B6E31-64DA-4B36-B3C8-902048FF9DAE}.Release|x86.Build.0 = Release|Win32
+		{5B6986B2-5DC5-40BB-99ED-CA175F094A09}.Debug|x64.ActiveCfg = Debug|x64
+		{5B6986B2-5DC5-40BB-99ED-CA175F094A09}.Debug|x64.Build.0 = Debug|x64
+		{5B6986B2-5DC5-40BB-99ED-CA175F094A09}.Debug|x86.ActiveCfg = Debug|Win32
+		{5B6986B2-5DC5-40BB-99ED-CA175F094A09}.Debug|x86.Build.0 = Debug|Win32
+		{5B6986B2-5DC5-40BB-99ED-CA175F094A09}.Release|x64.ActiveCfg = Release|x64
+		{5B6986B2-5DC5-40BB-99ED-CA175F094A09}.Release|x64.Build.0 = Release|x64
+		{5B6986B2-5DC5-40BB-99ED-CA175F094A09}.Release|x86.ActiveCfg = Release|Win32
+		{5B6986B2-5DC5-40BB-99ED-CA175F094A09}.Release|x86.Build.0 = Release|Win32
+		{21191DA4-14D6-41C0-8559-B760E1BA1AAD}.Debug|x64.ActiveCfg = Debug|x64
+		{21191DA4-14D6-41C0-8559-B760E1BA1AAD}.Debug|x64.Build.0 = Debug|x64
+		{21191DA4-14D6-41C0-8559-B760E1BA1AAD}.Debug|x86.ActiveCfg = Debug|Win32
+		{21191DA4-14D6-41C0-8559-B760E1BA1AAD}.Debug|x86.Build.0 = Debug|Win32
+		{21191DA4-14D6-41C0-8559-B760E1BA1AAD}.Release|x64.ActiveCfg = Release|x64
+		{21191DA4-14D6-41C0-8559-B760E1BA1AAD}.Release|x64.Build.0 = Release|x64
+		{21191DA4-14D6-41C0-8559-B760E1BA1AAD}.Release|x86.ActiveCfg = Release|Win32
+		{21191DA4-14D6-41C0-8559-B760E1BA1AAD}.Release|x86.Build.0 = Release|Win32
+		{703AA31A-AC79-430F-8F64-49DEEF5DB636}.Debug|x64.ActiveCfg = Debug|x64
+		{703AA31A-AC79-430F-8F64-49DEEF5DB636}.Debug|x64.Build.0 = Debug|x64
+		{703AA31A-AC79-430F-8F64-49DEEF5DB636}.Debug|x86.ActiveCfg = Debug|Win32
+		{703AA31A-AC79-430F-8F64-49DEEF5DB636}.Debug|x86.Build.0 = Debug|Win32
+		{703AA31A-AC79-430F-8F64-49DEEF5DB636}.Release|x64.ActiveCfg = Release|x64
+		{703AA31A-AC79-430F-8F64-49DEEF5DB636}.Release|x64.Build.0 = Release|x64
+		{703AA31A-AC79-430F-8F64-49DEEF5DB636}.Release|x86.ActiveCfg = Release|Win32
+		{703AA31A-AC79-430F-8F64-49DEEF5DB636}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
