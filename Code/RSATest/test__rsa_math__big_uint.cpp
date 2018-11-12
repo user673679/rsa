@@ -910,6 +910,7 @@ namespace test
 #pragma endregion
 
 	// TDOO (now):
+		// implement rabin miller prime check.
 		// can we tidy the math operations up?
 		// add more tests with 64 bit ints (will break accidental u32 stuff).
 

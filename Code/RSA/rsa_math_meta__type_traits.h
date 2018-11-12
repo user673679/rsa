@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <limits>
 #include <type_traits>
 
@@ -19,9 +20,9 @@ namespace rsa
 			using enable_if_uint_t = std::enable_if_t<is_uint_v<uint_t>>;
 
 			template<class t>
-			constexpr int digits()
+			constexpr std::uint32_t digits()
 			{
-				return std::numeric_limits<t>::digits;
+				return std::uint32_t(std::numeric_limits<t>::digits);
 			}
 
 			template<class t>
