@@ -79,7 +79,6 @@ namespace rsa
 			big_uint& operator^=(block_type n);
 
 			big_uint& operator<<=(bit_index_type n);
-
 			big_uint& operator>>=(bit_index_type n);
 
 #pragma endregion
@@ -87,29 +86,19 @@ namespace rsa
 #pragma region math operators
 
 			big_uint& operator+=(big_uint const& b);
-
-			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
-			big_uint& operator+=(uint_t n);
+			big_uint& operator+=(block_type n);
 
 			big_uint& operator-=(big_uint const& b);
-
-			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
-			big_uint& operator-=(uint_t n);
+			big_uint& operator-=(block_type n);
 
 			big_uint& operator*=(big_uint const& b);
-
-			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
-			big_uint& operator*=(uint_t n);
+			big_uint& operator*=(block_type n);
 
 			big_uint& operator/=(big_uint b);
-
-			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
-			big_uint& operator/=(uint_t n);
+			big_uint& operator/=(block_type n);
 
 			big_uint& operator%=(big_uint b);
-
-			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
-			big_uint& operator%=(uint_t n);
+			big_uint& operator%=(block_type n);
 
 			big_uint& operator++();
 			big_uint operator++(int);
@@ -359,10 +348,10 @@ namespace rsa
 		}
 
 		template<class block_t>
-		template<class uint_t, typename>
-		big_uint<block_t>& big_uint<block_t>::operator+=(uint_t n)
+		big_uint<block_t>& big_uint<block_t>::operator+=(block_type n)
 		{
-			return operator+=(big_uint(n));
+			ops::add_assign(*this, n);
+			return this;;
 		}
 
 		template<class block_t>
@@ -373,10 +362,10 @@ namespace rsa
 		}
 
 		template<class block_t>
-		template<class uint_t, typename>
-		big_uint<block_t>& big_uint<block_t>::operator-=(uint_t n)
+		big_uint<block_t>& big_uint<block_t>::operator-=(block_type n)
 		{
-			return operator-=(big_uint(n));
+			ops::sub_assign(*this, n);
+			return this;
 		}
 
 		template<class block_t>
@@ -387,10 +376,10 @@ namespace rsa
 		}
 
 		template<class block_t>
-		template<class uint_t, typename>
-		big_uint<block_t>& big_uint<block_t>::operator*=(uint_t n)
+		big_uint<block_t>& big_uint<block_t>::operator*=(block_type n)
 		{
-			return operator*=(big_uint(n));
+			ops::mul_assign(*this, n);
+			return this;
 		}
 
 		template<class block_t>
@@ -401,10 +390,10 @@ namespace rsa
 		}
 
 		template<class block_t>
-		template<class uint_t, typename>
-		big_uint<block_t>& big_uint<block_t>::operator/=(uint_t n)
+		big_uint<block_t>& big_uint<block_t>::operator/=(block_type n)
 		{
-			return operator/=(big_uint(n));
+			ops::div_assign(*this, n);
+			return *this;
 		}
 
 		template<class block_t>
@@ -415,10 +404,10 @@ namespace rsa
 		}
 
 		template<class block_t>
-		template<class uint_t, typename>
-		big_uint<block_t>& big_uint<block_t>::operator%=(uint_t n)
+		big_uint<block_t>& big_uint<block_t>::operator%=(block_type n)
 		{
-			return operator%=(big_uint(n));
+			ops::mod_assign(*this, n);
+			return *this;
 		}
 
 		template<class block_t>
