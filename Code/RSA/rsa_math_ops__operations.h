@@ -41,7 +41,7 @@ namespace rsa
 			} // utils
 
 			template<class block_t>
-			void bit_and_assign(big_uint<block_t>& a, big_uint<block_t> const& b)
+			void bit_and_assign(big_uint<block_t>& a, big_uint<block_t> b)
 			{
 				const auto min_size = std::min(a.data().size(), b.data().size());
 
@@ -64,7 +64,7 @@ namespace rsa
 			}
 
 			template<class block_t>
-			void bit_or_assign(big_uint<block_t>& a, big_uint<block_t> const& b)
+			void bit_or_assign(big_uint<block_t>& a, big_uint<block_t> b)
 			{
 				const auto min_size = std::min(a.data().size(), b.data().size());
 
@@ -84,7 +84,7 @@ namespace rsa
 			}
 
 			template<class block_t>
-			void bit_xor_assign(big_uint<block_t>& a, big_uint<block_t> const& b)
+			void bit_xor_assign(big_uint<block_t>& a, big_uint<block_t> b)
 			{
 				const auto min_size = std::min(a.data().size(), b.data().size());
 
@@ -252,9 +252,9 @@ namespace rsa
 			}
 
 			template<class block_t>
-			void add_assign(big_uint<block_t>& a, typename big_uint<block_t>::block_type const& b)
+			void add_assign(big_uint<block_t>& a, typename big_uint<block_t>::block_type b)
 			{
-				if (b == block_type{ 0 })
+				if (b == block_t{ 0 })
 					return;
 
 				if (a.is_zero())
@@ -270,7 +270,7 @@ namespace rsa
 
 				auto carry = checked_addassign(a.data().front(), b);
 
-				for (auto i = std::size_t{ 1 }; carry && i != a.size(); ++i)
+				for (auto i = std::size_t{ 1 }; carry && i != a.data().size(); ++i)
 					carry = checked_addassign(a.data()[i], block_t{ 1 });
 
 				if (carry)
@@ -317,7 +317,7 @@ namespace rsa
 			}
 
 			template<class block_t>
-			void sub_assign(big_uint<block_t>& a, typename big_uint<block_t>::block_type const& b)
+			void sub_assign(big_uint<block_t>& a, typename big_uint<block_t>::block_type b)
 			{
 				if (b == block_t{ 0 })
 					return;
@@ -332,7 +332,7 @@ namespace rsa
 
 				auto borrow = checked_sub(a.data().front(), a.data().front(), b);
 
-				for (auto i = std::size_t{ 1 }; borrow && i != a.size(); ++i)
+				for (auto i = std::size_t{ 1 }; borrow && i != a.data().size(); ++i)
 					borrow = checked_sub(a.data()[i], a.data()[i], block_t{ 1 });
 
 				rsa::utils::die_if(borrow);
@@ -366,7 +366,31 @@ namespace rsa
 				}
 			}
 
-			// <------------------------------------ implement block_type mul_assign. implement block_type comparison operators.
+			template<class block_t>
+			void mul_assign(big_uint<block_t>& lhs, typename big_uint<block_t>::block_type rhs)
+			{
+				if (lhs.is_zero()) return;
+				if (rhs == block_t{ 0 }) { lhs.data().clear(); return; }
+
+				if (rhs == 1u) return;
+				if (lhs == 1u) { lhs.data().resize(1u); lhs.data().front() = rhs; return; }
+
+				{
+					auto b = rhs;
+					auto a = std::move(lhs);
+					auto& c = lhs;
+					rsa::utils::die_if(!c.is_zero());
+
+					while (b != block_t{ 0 })
+					{
+						if ((b & block_t{ 1 }) != 0u)
+							c += a;
+
+						a <<= 1u;
+						b >>= 1u;
+					}
+				}
+			}
 
 			template<class block_t>
 			void div_assign(big_uint<block_t>& lhs, big_uint<block_t> const& rhs)
@@ -397,6 +421,44 @@ namespace rsa
 			}
 
 			template<class block_t>
+			void div_assign(big_uint<block_t>& lhs, typename big_uint<block_t>::block_type rhs)
+			{
+				if (rhs == block_t{ 0 })
+					throw std::invalid_argument("divisor cannot be zero.");
+
+				if (lhs < rhs) { lhs.data().clear(); return; }
+				if (lhs == rhs) { lhs.data().clear(); lhs.data().push_back(block_t{ 1 }); return; }
+
+				auto const get_msb = [] (block_t block)
+				{
+					if (block == block_t{ 0 })
+						throw std::logic_error("number must not be zero.");
+
+					auto count = std::uint8_t{ 0u };
+					while (block != block_t{ 1 }) { ++count; block >>= 1u; }
+					return count;
+				};
+
+				{
+					auto const& d = rhs;
+					auto n = std::move(lhs);
+					auto& q = lhs;
+					rsa::utils::die_if(!q.is_zero());
+
+					auto i = (n.get_most_significant_bit() - get_msb(d));
+					auto dt = big_uint<block_t>(d) << i;
+
+					while (n >= d)
+					{
+						while (dt > n && i != 0u) { --i; dt >>= 1u; }
+
+						q.set_bit(i, true);
+						n -= dt;
+					}
+				}
+			}
+
+			template<class block_t>
 			void mod_assign(big_uint<block_t>& lhs, big_uint<block_t> const& rhs)
 			{
 				// similar to division, but lhs is the numerator, not the quotient.
@@ -411,11 +473,46 @@ namespace rsa
 					const auto d = rhs;
 					auto& n = lhs;
 					auto q = big_uint<block_t>();
-					rsa::utils::die_if(!q.is_zero());
 
 					auto i = (n.get_most_significant_bit() - d.get_most_significant_bit());
 					auto dt = d << i;
-					if (dt > n) { --i; dt >>= 1u; }
+
+					while (n >= d)
+					{
+						while (dt > n && i != 0u) { --i; dt >>= 1u; }
+
+						q.set_bit(i, true);
+						n -= dt;
+					}
+				}
+			}
+
+			template<class block_t>
+			void mod_assign(big_uint<block_t>& lhs, typename big_uint<block_t>::block_type rhs)
+			{
+				if (rhs == block_t{ 0 })
+					throw std::invalid_argument("divisor cannot be zero.");
+
+				if (lhs < rhs) { return; }
+				if (lhs == rhs) { lhs.data().clear(); return; }
+
+				auto const get_msb = [] (block_t block)
+				{
+					if (block == block_t{ 0 })
+						throw std::logic_error("number must not be zero.");
+
+					auto count = std::uint8_t{ 0u };
+					while (block != block_t{ 1 }) { ++count; block >>= 1u; }
+					return count;
+				};
+
+				{
+					auto const& d = rhs;
+					auto& n = lhs;
+					auto q = big_uint<block_t>();
+
+					auto i = (n.get_most_significant_bit() - get_msb(d));
+					auto dt = big_uint<block_t>(d) << i;
 
 					while (n >= d)
 					{

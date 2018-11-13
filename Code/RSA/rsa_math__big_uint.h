@@ -351,7 +351,7 @@ namespace rsa
 		big_uint<block_t>& big_uint<block_t>::operator+=(block_type n)
 		{
 			ops::add_assign(*this, n);
-			return this;;
+			return *this;
 		}
 
 		template<class block_t>
@@ -365,7 +365,7 @@ namespace rsa
 		big_uint<block_t>& big_uint<block_t>::operator-=(block_type n)
 		{
 			ops::sub_assign(*this, n);
-			return this;
+			return *this;
 		}
 
 		template<class block_t>
@@ -379,7 +379,7 @@ namespace rsa
 		big_uint<block_t>& big_uint<block_t>::operator*=(block_type n)
 		{
 			ops::mul_assign(*this, n);
-			return this;
+			return *this;
 		}
 
 		template<class block_t>
