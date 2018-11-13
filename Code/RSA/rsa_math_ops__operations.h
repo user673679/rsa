@@ -175,6 +175,12 @@ namespace rsa
 				if (b.is_zero())
 					return;
 
+				if (a.is_zero())
+				{
+					a = b;
+					return;
+				}
+
 				using data_type = big_uint<block_t>::data_type;
 
 				const auto get_block = [] (data_type const& data, std::size_t i)
@@ -294,7 +300,6 @@ namespace rsa
 
 					auto i = (n.get_most_significant_bit() - d.get_most_significant_bit());
 					auto dt = d << i;
-					if (dt > n) { --i; dt >>= 1u; }
 
 					while (n >= d)
 					{

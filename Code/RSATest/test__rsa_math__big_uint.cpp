@@ -909,14 +909,4 @@ namespace test
 
 #pragma endregion
 
-	// TDOO (now):
-		// implement rabin miller prime check.
-		// can we tidy the math operations up?
-		// add more tests with 64 bit ints (will break accidental u32 stuff).
-
-	// TODO (sometime):
-		// support indexing of bits with big_uint instead of size_t?
-		// construct from biguints with other block sizes
-		// string constructor and to_string()
-
 } // test

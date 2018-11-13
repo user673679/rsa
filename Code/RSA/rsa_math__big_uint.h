@@ -136,7 +136,7 @@ namespace rsa
 		using big_uint_32 = big_uint<std::uint32_t>;
 		using big_uint_64 = big_uint<std::uint64_t>;
 
-#pragma region construct
+#pragma region members - construct
 
 		template<class block_t>
 		big_uint<block_t>::big_uint():
@@ -168,7 +168,7 @@ namespace rsa
 
 #pragma endregion
 
-#pragma region general
+#pragma region members - general
 
 		template<class block_t>
 		template<class uint_t>
@@ -278,7 +278,7 @@ namespace rsa
 
 #pragma endregion
 
-#pragma region assignment
+#pragma region members - assignment
 
 		template<class block_t>
 		template<class uint_t, typename>
@@ -289,7 +289,7 @@ namespace rsa
 
 #pragma endregion
 
-#pragma region bitwise operators
+#pragma region members - bitwise operators
 
 		template<class block_t>
 		big_uint<block_t>& big_uint<block_t>::operator&=(big_uint const& b)
@@ -349,7 +349,7 @@ namespace rsa
 
 #pragma endregion
 
-#pragma region math operators
+#pragma region members - math operators
 
 		template<class block_t>
 		big_uint<block_t>& big_uint<block_t>::operator+=(big_uint const& b)
