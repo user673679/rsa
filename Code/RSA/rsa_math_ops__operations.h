@@ -52,6 +52,18 @@ namespace rsa
 			}
 
 			template<class block_t>
+			void bit_and_assign(big_uint<block_t>& a, typename big_uint<block_t>::block_type n)
+			{
+				if (n == block_t{ 0 })
+					a.data().clear();
+				else
+				{
+					a.data().resize(1u);
+					a.data().front() &= n;
+				}
+			}
+
+			template<class block_t>
 			void bit_or_assign(big_uint<block_t>& a, big_uint<block_t> const& b)
 			{
 				const auto min_size = std::min(a.data().size(), b.data().size());
@@ -60,6 +72,15 @@ namespace rsa
 					a.data()[i] |= b.data()[i];
 
 				std::copy(b.data().begin() + min_size, b.data().end(), std::back_inserter(a.data()));
+			}
+
+			template<class block_t>
+			void bit_or_assign(big_uint<block_t>& a, typename big_uint<block_t>::block_type n)
+			{
+				if (a.is_zero())
+					a.data().push_back(n);
+				else
+					a.data().front() |= n;
 			}
 
 			template<class block_t>
@@ -73,6 +94,18 @@ namespace rsa
 				std::copy(b.data().begin() + min_size, b.data().end(), std::back_inserter(a.data()));
 
 				utils::trim(a);
+			}
+
+			template<class block_t>
+			void bit_xor_assign(big_uint<block_t>& a, typename big_uint<block_t>::block_type n)
+			{
+				if (a.is_zero())
+					a.data().push_back(n);
+				else
+				{
+					a.data().front() ^= n;
+					utils::trim(a);
+				}
 			}
 
 			template<class block_t>
@@ -237,7 +270,7 @@ namespace rsa
 
 				auto borrow = false;
 
-				// add corresponding blocks. in case of underflow, carry one to the next block.
+				// sub corresponding blocks. in case of underflow, carry one to the next block.
 				for (auto i = std::size_t{ 0 }; i != a.data().size(); ++i)
 				{
 					const auto b_block = get_block(b.data(), i);
@@ -294,7 +327,6 @@ namespace rsa
 
 					auto i = (n.get_most_significant_bit() - d.get_most_significant_bit());
 					auto dt = d << i;
-					if (dt > n) { --i; dt >>= 1u; }
 
 					while (n >= d)
 					{

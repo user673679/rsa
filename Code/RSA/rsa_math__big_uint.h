@@ -45,8 +45,7 @@ namespace rsa
 			big_uint& operator=(big_uint const&) = default;
 			big_uint& operator=(big_uint&&) = default;
 
-			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
-			big_uint& operator=(uint_t n);
+			big_uint& operator=(block_type n);
 
 #pragma endregion
 
@@ -71,19 +70,13 @@ namespace rsa
 #pragma region bitwise operators
 
 			big_uint& operator&=(big_uint const& b);
-
-			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
-			big_uint& operator&=(uint_t n);
+			big_uint& operator&=(block_type n);
 
 			big_uint& operator|=(big_uint const& b);
-
-			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
-			big_uint& operator|=(uint_t n);
+			big_uint& operator|=(block_type n);
 
 			big_uint& operator^=(big_uint const& b);
-
-			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
-			big_uint& operator^=(uint_t n);
+			big_uint& operator^=(block_type n);
 
 			big_uint& operator<<=(bit_index_type n);
 
@@ -136,7 +129,7 @@ namespace rsa
 		using big_uint_32 = big_uint<std::uint32_t>;
 		using big_uint_64 = big_uint<std::uint64_t>;
 
-#pragma region construct
+#pragma region members - construct
 
 		template<class block_t>
 		big_uint<block_t>::big_uint():
@@ -168,7 +161,7 @@ namespace rsa
 
 #pragma endregion
 
-#pragma region general
+#pragma region members - general
 
 		template<class block_t>
 		template<class uint_t>
@@ -278,18 +271,25 @@ namespace rsa
 
 #pragma endregion
 
-#pragma region assignment
+#pragma region members - assignment
 
 		template<class block_t>
-		template<class uint_t, typename>
-		big_uint<block_t>& big_uint<block_t>::operator=(uint_t n)
+		big_uint<block_t>& big_uint<block_t>::operator=(block_type n)
 		{
-			return (*this = big_uint(n));
+			if (n == block_type{ 0 })
+				m_data.clear();
+			else
+			{
+				m_data.resize(1u);
+				m_data.front() = n;
+			}
+
+			return *this;
 		}
 
 #pragma endregion
 
-#pragma region bitwise operators
+#pragma region members - bitwise operators
 
 		template<class block_t>
 		big_uint<block_t>& big_uint<block_t>::operator&=(big_uint const& b)
@@ -299,10 +299,10 @@ namespace rsa
 		}
 
 		template<class block_t>
-		template<class uint_t, typename>
-		big_uint<block_t>& big_uint<block_t>::operator&=(uint_t n)
+		big_uint<block_t>& big_uint<block_t>::operator&=(block_type n)
 		{
-			return operator&=(big_uint(n));
+			ops::bit_and_assign(*this, n);
+			return *this;
 		}
 
 		template<class block_t>
@@ -313,10 +313,10 @@ namespace rsa
 		}
 
 		template<class block_t>
-		template<class uint_t, typename>
-		big_uint<block_t>& big_uint<block_t>::operator|=(uint_t n)
+		big_uint<block_t>& big_uint<block_t>::operator|=(block_type n)
 		{
-			return operator|=(big_uint(n));
+			ops::bit_or_assign(*this, n);
+			return *this;
 		}
 
 		template<class block_t>
@@ -327,10 +327,10 @@ namespace rsa
 		}
 
 		template<class block_t>
-		template<class uint_t, typename>
-		big_uint<block_t>& big_uint<block_t>::operator^=(uint_t n)
+		big_uint<block_t>& big_uint<block_t>::operator^=(block_type n)
 		{
-			return operator^=(big_uint(n));
+			ops::bit_xor_assign(*this, n);
+			return *this;
 		}
 
 		template<class block_t>
@@ -349,7 +349,7 @@ namespace rsa
 
 #pragma endregion
 
-#pragma region math operators
+#pragma region members - math operators
 
 		template<class block_t>
 		big_uint<block_t>& big_uint<block_t>::operator+=(big_uint const& b)
@@ -577,10 +577,10 @@ namespace rsa
 			return (a &= b);
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
-		big_uint<block_t> operator&(big_uint<block_t> a, uint_t b)
+		template<class block_t>
+		big_uint<block_t> operator&(big_uint<block_t> a, typename big_uint<block_t>::block_type b)
 		{
-			return (a &= big_uint<block_t>(b));
+			return (a &= b);
 		}
 
 		template<class block_t>
@@ -589,10 +589,10 @@ namespace rsa
 			return (a |= b);
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
-		big_uint<block_t> operator|(big_uint<block_t> a, uint_t b)
+		template<class block_t>
+		big_uint<block_t> operator|(big_uint<block_t> a, typename big_uint<block_t>::block_type b)
 		{
-			return (a |= big_uint<block_t>(b));
+			return (a |= b);
 		}
 
 		template<class block_t>
@@ -601,20 +601,20 @@ namespace rsa
 			return (a ^= b);
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
-		big_uint<block_t> operator^(big_uint<block_t> a, uint_t b)
+		template<class block_t>
+		big_uint<block_t> operator^(big_uint<block_t> a, typename big_uint<block_t>::block_type b)
 		{
-			return (a ^= big_uint<block_t>(b));
+			return (a ^= b);
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
-		big_uint<block_t> operator<<(big_uint<block_t> a, uint_t b)
+		template<class block_t>
+		big_uint<block_t> operator<<(big_uint<block_t> a, typename big_uint<block_t>::bit_index_type b)
 		{
 			return (a <<= b);
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
-		big_uint<block_t> operator>>(big_uint<block_t> a, uint_t b)
+		template<class block_t>
+		big_uint<block_t> operator>>(big_uint<block_t> a, typename big_uint<block_t>::bit_index_type b)
 		{
 			return (a >>= b);
 		}

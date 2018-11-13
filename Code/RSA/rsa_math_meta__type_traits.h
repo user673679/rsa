@@ -19,6 +19,7 @@ namespace rsa
 			template<class uint_t>
 			using enable_if_uint_t = std::enable_if_t<is_uint_v<uint_t>>;
 
+
 			template<class t>
 			constexpr std::uint32_t digits()
 			{

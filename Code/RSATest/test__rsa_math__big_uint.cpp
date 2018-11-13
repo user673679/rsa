@@ -79,7 +79,7 @@ namespace test
 
 	TEST(Test_RSA, math_big_uint_value_assign)
 	{
-		auto max = utils::uint64_max;
+		auto max = utils::uint32_max;
 		auto n = rsa::math::big_uint_32(5u);
 		n = max;
 
@@ -222,88 +222,88 @@ namespace test
 
 #pragma region bitwise operators
 
-	TEST(Test_RSA, math_big_uint_bit_and_assign)
+	TEST(Test_RSA, math_big_uint_bit_and__BigUint)
 	{
 		{
 			auto zero = rsa::math::big_uint_32(0u);
-			EXPECT_TRUE((zero &= zero).is_zero());
+			EXPECT_TRUE((zero & zero).is_zero());
 		}
 		{
 			auto zero = rsa::math::big_uint_32(0u);
 			auto something = rsa::math::big_uint_32(3476u);
-			EXPECT_EQ(zero &= something, 0u);
+			EXPECT_EQ(zero & something, 0u);
 		}
 		{
 			auto a = rsa::math::big_uint_8(12395787u);
 			auto b = rsa::math::big_uint_8(19787u);
-			EXPECT_EQ(a &= b, std::uint32_t{ 12395787u } & 19787u);
+			EXPECT_EQ(a & b, std::uint32_t{ 12395787u } & 19787u);
 		}
 		{
 			auto a = rsa::math::big_uint_8(12395787u);
-			EXPECT_EQ(a &= a, std::uint32_t{ 12395787u });
+			EXPECT_EQ(a & a, std::uint32_t{ 12395787u });
 		}
 	}
 
-	TEST(Test_RSA, math_big_uint_bit_and)
+	TEST(Test_RSA, math_big_uint_bit_and__Value)
 	{
 		auto a = rsa::math::big_uint_8(123987u);
-		EXPECT_EQ(a & 19787u, std::uint32_t{ 123987u } & 19787u);
+		EXPECT_EQ(a & std::uint8_t{ 197 }, std::uint32_t{ 123987u } & 197u);
 	}
 
-	TEST(Test_RSA, math_big_uint_bit_or_assign)
+	TEST(Test_RSA, math_big_uint_bit_or__BigUint)
 	{
 		{
 			auto zero = rsa::math::big_uint_32(0u);
-			EXPECT_TRUE((zero |= zero).is_zero());
-		}
-		{
-			auto zero = rsa::math::big_uint_32(0u);
-			auto something = rsa::math::big_uint_32(3476u);
-			EXPECT_EQ(zero |= something, something);
-		}
-		{
-			auto a = rsa::math::big_uint_8(12395787u);
-			auto b = rsa::math::big_uint_8(19787u);
-			EXPECT_EQ(a |= b, 12395787u | 19787u);
-		}
-		{
-			auto a = rsa::math::big_uint_8(12395787u);
-			EXPECT_EQ(a |= a, 12395787u);
-		}
-	}
-
-	TEST(Test_RSA, math_big_uint_bit_or)
-	{
-		auto a = rsa::math::big_uint_8(127u);
-		EXPECT_EQ(a | 19787u, 127u | 19787u);
-	}
-
-	TEST(Test_RSA, math_big_uint_bit_xor_assign)
-	{
-		{
-			auto zero = rsa::math::big_uint_32(0u);
-			EXPECT_TRUE((zero ^= zero).is_zero());
+			EXPECT_TRUE((zero | zero).is_zero());
 		}
 		{
 			auto zero = rsa::math::big_uint_32(0u);
 			auto something = rsa::math::big_uint_32(3476u);
-			EXPECT_EQ(zero ^= something, something);
+			EXPECT_EQ(zero | something, something);
 		}
 		{
 			auto a = rsa::math::big_uint_8(12395787u);
 			auto b = rsa::math::big_uint_8(19787u);
-			EXPECT_EQ(a ^= b, 12395787u ^ 19787u);
+			EXPECT_EQ(a | b, 12395787u | 19787u);
 		}
 		{
 			auto a = rsa::math::big_uint_8(12395787u);
-			EXPECT_TRUE((a ^= a).is_zero());
+			EXPECT_EQ(a | a, 12395787u);
 		}
 	}
 
-	TEST(Test_RSA, math_big_uint_bit_xor)
+	TEST(Test_RSA, math_big_uint_bit_or__Value)
 	{
 		auto a = rsa::math::big_uint_8(127u);
-		EXPECT_EQ(a ^ 19787u, 127u ^ 19787u);
+		EXPECT_EQ(a | std::uint8_t{ 198u }, 127u | 198u);
+	}
+
+	TEST(Test_RSA, math_big_uint_bit_xor__BigUint)
+	{
+		{
+			auto zero = rsa::math::big_uint_32(0u);
+			EXPECT_TRUE((zero ^ zero).is_zero());
+		}
+		{
+			auto zero = rsa::math::big_uint_32(0u);
+			auto something = rsa::math::big_uint_32(3476u);
+			EXPECT_EQ(zero ^ something, something);
+		}
+		{
+			auto a = rsa::math::big_uint_8(12395787u);
+			auto b = rsa::math::big_uint_8(19787u);
+			EXPECT_EQ(a ^ b, 12395787u ^ 19787u);
+		}
+		{
+			auto a = rsa::math::big_uint_8(12395787u);
+			EXPECT_TRUE((a ^ a).is_zero());
+		}
+	}
+
+	TEST(Test_RSA, math_big_uint_bit_xor__Value)
+	{
+		auto a = rsa::math::big_uint_8(12u);
+		EXPECT_EQ(a ^ std::uint8_t{ 98 }, 12u ^ 98u);
 	}
 
 	TEST(Test_RSA, math_big_uint_lshift_assign)
@@ -908,15 +908,5 @@ namespace test
 	}
 
 #pragma endregion
-
-	// TDOO (now):
-		// implement rabin miller prime check.
-		// can we tidy the math operations up?
-		// add more tests with 64 bit ints (will break accidental u32 stuff).
-
-	// TODO (sometime):
-		// support indexing of bits with big_uint instead of size_t?
-		// construct from biguints with other block sizes
-		// string constructor and to_string()
 
 } // test
