@@ -31,9 +31,6 @@ namespace rsa
 				return std::numeric_limits<t>::max();
 			}
 
-			template<class uint_t, class block_t>
-			using enable_if_larger_uint_t = std::enable_if_t<is_uint_v<uint_t> && (digits<uint_t>() > digits<block_t>())>;
-
 		} // meta
 
 	} // math
