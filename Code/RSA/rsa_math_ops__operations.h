@@ -207,11 +207,11 @@ namespace rsa
 				// add corresponding blocks. in case of overflow, carry one to the next block.
 				for (auto i = std::size_t{ 0 }; i != max_size; ++i)
 				{
-					const auto b_block = get_block(b.data(), i);
+					auto const& b_block = get_block(b.data(), i);
 					auto& a_block = get_block_extend(a.data(), i);
 
 					// use bitwise or so both sides are evaluated.
-					carry = (checked_addassign(a_block, b_block) | checked_addassign(a_block, carry ? block_t{ 1 } : block_t{ 0 }));
+					carry = (checked_addassign(a_block, b_block) | (carry ? checked_addassign(a_block, block_t{ 1 }) : false));
 				}
 
 				if (carry)
@@ -246,11 +246,11 @@ namespace rsa
 				// add corresponding blocks. in case of underflow, carry one to the next block.
 				for (auto i = std::size_t{ 0 }; i != a.data().size(); ++i)
 				{
-					const auto b_block = get_block(b.data(), i);
+					auto const& b_block = get_block(b.data(), i);
 					auto& a_block = a.data()[i];
 
 					// use bitwise or so both sides are evaluated.
-					borrow = (checked_sub(a_block, a_block, b_block) | checked_sub(a_block, a_block, borrow ? block_t{ 1 } : block_t{ 0 }));
+					borrow = (checked_sub(a_block, a_block, b_block) | (borrow ? checked_sub(a_block, a_block, block_t{ 1 }) : false));
 				}
 
 				utils::trim(a);

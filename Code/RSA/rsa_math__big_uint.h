@@ -715,6 +715,94 @@ namespace rsa
 
 #pragma endregion
 
+		namespace ops
+		{
+
+			template<>
+			inline void add_assign(big_uint<std::uint32_t>& a, big_uint<std::uint32_t> const& b)
+			{
+				using block_t = std::uint32_t;
+				using double_block_t = std::uint64_t;
+
+				if (b.is_zero())
+					return;
+
+				if (a.is_zero())
+				{
+					a = b;
+					return;
+				}
+
+				auto& a_data = a.data();
+				auto const& b_data = b.data();
+				const auto min_size = std::min(a_data.size(), b_data.size());
+
+				auto carry = double_block_t{ 0 };
+
+				// both a and b have data
+				for (auto i = std::size_t{ 0 }; i != min_size; ++i)
+				{
+					carry += static_cast<double_block_t>(a_data[i]) + static_cast<double_block_t>(b_data[i]);
+					a_data[i] = static_cast<block_t>(carry);
+					carry >>= meta::digits<block_t>();
+				}
+
+				// ran out of data in a, copy over the rest of b
+				a_data.insert(a_data.end(), b_data.begin() + min_size, b_data.end());
+
+				// add carry
+				for (auto i = min_size; i != a_data.size() && (carry != double_block_t{ 0 }); ++i)
+				{
+					carry += static_cast<double_block_t>(a_data[i]);
+					a_data[i] = static_cast<block_t>(carry);
+					carry >>= meta::digits<block_t>();
+				}
+
+				// extend a if necessary
+				if (carry)
+					a_data.push_back(static_cast<std::uint32_t>(carry));
+			}
+
+			template<>
+			inline void sub_assign(big_uint<std::uint32_t>& a, big_uint<std::uint32_t> const& b)
+			{
+				using block_t = std::uint32_t;
+				using double_block_t = std::uint64_t;
+
+				if (b.is_zero())
+					return;
+
+				if (b > a)
+					throw std::invalid_argument("cannot subtract larger value from smaller one.");
+
+				rsa::utils::die_if(a.data().size() < b.data().size());
+
+				auto& a_data = a.data();
+				auto const& b_data = b.data();
+
+				auto borrow = double_block_t{ 0 };
+
+				// both a and b have data
+				for (auto i = std::size_t{ 0 }; i != b_data.size(); ++i)
+				{
+					borrow = static_cast<double_block_t>(a_data[i]) - static_cast<double_block_t>(b_data[i]) - borrow;
+					a_data[i] = static_cast<block_t>(borrow);
+					borrow = (borrow >> meta::digits<block_t>()) & double_block_t { 1 };
+				}
+
+				// ran out of data in b, subtract borrow
+				for (auto i = b_data.size(); i != a_data.size() && (borrow != double_block_t{ 0 }); ++i)
+				{
+					borrow = static_cast<double_block_t>(a_data[i]) - borrow;
+					a_data[i] = static_cast<block_t>(borrow);
+					borrow = (borrow >> meta::digits<block_t>()) & double_block_t { 1 };
+				}
+
+				utils::trim(a);
+			}
+
+		} // ops
+
 	} // math
 
 } // rsa

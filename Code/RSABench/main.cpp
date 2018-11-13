@@ -93,7 +93,7 @@ static void BM_RSA_generate_prime_rm(benchmark::State& state)
 	auto k = 20u;
 
 	for (auto _ : state)
-		benchmark::DoNotOptimize(rsa::math::generate_prime_rm<std::uint64_t>(rng, std::size_t(state.range(0)), k));
+		benchmark::DoNotOptimize(rsa::math::generate_prime_rm<std::uint32_t>(rng, std::size_t(state.range(0)), k));
 }
 
 BENCHMARK(BM_RSA_generate_prime_rm)->RangeMultiplier(2u)->Range(16u, 1024u)->Complexity()->Unit(benchmark::kMillisecond);
