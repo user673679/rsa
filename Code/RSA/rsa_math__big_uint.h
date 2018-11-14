@@ -801,6 +801,69 @@ namespace rsa
 				utils::trim(a);
 			}
 
+			template<>
+			inline void mul_assign(big_uint<std::uint32_t>& lhs, big_uint<std::uint32_t> const& rhs)
+			{
+				using block_t = std::uint32_t;
+				using double_block_t = std::uint64_t;
+
+				if (lhs.is_zero()) return;
+				if (rhs.is_zero()) { lhs.data().clear(); return; }
+
+				if (rhs == 1u) return;
+				if (lhs == 1u) { lhs = rhs; return; }
+
+				// note: long multiplication relies on:
+				// double_block_t holding (max<block_t>() * max<block_t>() + 2 * max<block_t>())
+				// which is exactly the case if digits<double_block_t>() == 2 * digits<block_t>();
+
+				{
+					auto b = rhs; // TODO: we only need to copy this if lhs and rhs refer to the same object
+					auto a = std::move(lhs);
+					auto& c = lhs;
+
+					auto const& a_data = a.data();
+					auto const& b_data = b.data();
+					auto& c_data = c.data();
+
+					c_data.resize(a_data.size() + b_data.size());
+
+					for (auto i = std::size_t{ 0 }; i != a_data.size(); ++i)
+					{
+						auto carry = double_block_t{ 0 };
+
+						for (auto j = std::size_t{ 0 }; j != b_data.size(); ++j)
+						{
+							carry += static_cast<double_block_t>(a_data[i]) * static_cast<double_block_t>(b_data[j]);
+							carry += c_data[i + j];
+							c_data[i + j] = static_cast<block_t>(carry);
+							carry >>= meta::digits<block_t>();
+						}
+
+						// c_data[i + b_data.size()] should always be zero
+						if (carry)
+							c_data[i + b_data.size()] = static_cast<block_t>(carry);
+					}
+
+					utils::trim(c);
+				}
+			}
+
+			// multiply
+
+			// resize result to be as + bs
+
+			// static assert re limb type / double limb type
+
+			// for i from 0 to a size.
+				// for j from 0 to b size.
+					// carry += dbt(a) * dbt(b);
+					// carry += result[i + j];
+					// result[i + j] = bt(carry);
+					// carry >>= digits<bt>();
+				// if carry
+					// 
+
 		} // ops
 
 	} // math
