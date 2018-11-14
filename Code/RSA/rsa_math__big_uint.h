@@ -11,6 +11,8 @@
 #include <type_traits>
 #include <vector>
 
+#include <iostream>
+
 namespace rsa
 {
 
@@ -840,7 +842,7 @@ namespace rsa
 							carry >>= meta::digits<block_t>();
 						}
 
-						// c_data[i + b_data.size()] should always be zero
+						// c_data[i + b_data.size()] is always zero
 						if (carry)
 							c_data[i + b_data.size()] = static_cast<block_t>(carry);
 					}
@@ -849,20 +851,73 @@ namespace rsa
 				}
 			}
 
-			// multiply
+			// TODO: 
+			// use normal version and new version inside operator. throw when the answer is different.
+			// same for add, sub, mul.
 
-			// resize result to be as + bs
+			//template<>
+			//inline void mod_assign(big_uint<std::uint32_t>& lhs, big_uint<std::uint32_t> const& rhs)
+			//{
+			//	using block_t = std::uint32_t;
+			//	using double_block_t = std::uint64_t;
 
-			// static assert re limb type / double limb type
+			//	if (rhs.is_zero())
+			//		throw std::invalid_argument("divisor cannot be zero.");
 
-			// for i from 0 to a size.
-				// for j from 0 to b size.
-					// carry += dbt(a) * dbt(b);
-					// carry += result[i + j];
-					// result[i + j] = bt(carry);
-					// carry >>= digits<bt>();
-				// if carry
-					// 
+			//	if (lhs < rhs) { return; }
+			//	if (lhs == rhs) { lhs.data().clear(); return; }
+
+			//	{
+			//		const auto d = rhs;
+			//		auto& n = lhs;
+			//		auto q = big_uint<block_t>();
+			//		rsa::utils::die_if(!q.is_zero());
+
+			//		const auto& d_data = d.data();
+			//		auto& n_data = n.data();
+			//		auto& q_data = q.data();
+			//		q_data.resize(n_data.size()); // could this be based on the shift?
+
+			//		auto dt = d;
+			//		auto& dt_data = dt.data();
+
+			//		auto shift = (n_data.size() - d_data.size());
+			//		dt_data.insert(dt_data.begin(), shift, block_t{ 0 });
+
+			//		//std::cout << n_data.back() << " / " << d_data.back() << std::endl;
+
+			//		auto carry = double_block_t{ 0 };
+
+			//		for (auto i = n_data.size(); n >= d && i != 0; --i)
+			//		{
+			//			carry <<= meta::digits<block_t>();
+
+			//			auto n_index = i - 1u;
+
+			//			while (dt > n && shift) { --shift; dt_data.erase(dt_data.begin()); }
+
+			//			carry += n_data[n_index];
+
+			//			if (carry > dt_data.back())
+			//			{
+			//				auto div = carry / dt_data.back();
+			//				q_data[shift] += static_cast<block_t>(div);
+			//				if (div > meta::max<block_t>()) q_data[shift + 1u] += static_cast<block_t>(div >> meta::digits<block_t>());
+
+			//				auto mul = div * dt_data.back();
+			//				carry -= mul;
+			//				n_data[n_index] = static_cast<block_t>(carry);
+			//				if (carry > meta::max<block_t>()) n_data[n_index + 1u] += static_cast<block_t>(carry >> meta::digits<block_t>());
+
+			//				utils::trim(n);
+			//			}
+			//		}
+
+			//		// hmm... what to do?
+
+			//		utils::trim(q);
+			//	}
+			//}
 
 		} // ops
 

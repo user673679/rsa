@@ -4,6 +4,10 @@
 
 #include <gtest/gtest.h>
 
+#include <cstdint>
+#include <limits>
+#include <random>
+
 namespace test
 {
 
@@ -707,6 +711,19 @@ namespace test
 			a /= a;
 			EXPECT_EQ(a, 1u);
 		}
+
+		auto rng = std::mt19937_64();
+		auto dist = std::uniform_int_distribution<std::uint64_t>(0u, std::numeric_limits<std::uint64_t>::max());
+
+		for (auto i = 0u; i != 10000u; ++i)
+		{
+			auto an = dist(rng);
+			auto a = rsa::math::big_uint_8(an);
+			auto bn = dist(rng);
+			auto b = rsa::math::big_uint_8(bn);
+
+			EXPECT_EQ(a / b, an / bn);
+		}
 	}
 
 	TEST(Test_RSA, math_big_uint_divassign__Value)
@@ -758,6 +775,19 @@ namespace test
 			auto a = rsa::math::big_uint_8(96u);
 			a %= a;
 			EXPECT_EQ(a, 0u);
+		}
+
+		auto rng = std::mt19937_64();
+		auto dist = std::uniform_int_distribution<std::uint64_t>(0u, std::numeric_limits<std::uint64_t>::max());
+
+		for (auto i = 0u; i != 10000u; ++i)
+		{
+			auto an = dist(rng);
+			auto a = rsa::math::big_uint_8(an);
+			auto bn = dist(rng);
+			auto b = rsa::math::big_uint_8(bn);
+
+			EXPECT_EQ(a % b, an % bn);
 		}
 	}
 

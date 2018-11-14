@@ -330,7 +330,6 @@ namespace rsa
 
 					auto i = (n.get_most_significant_bit() - d.get_most_significant_bit());
 					auto dt = d << i;
-					if (dt > n) { --i; dt >>= 1u; }
 
 					while (n >= d)
 					{
