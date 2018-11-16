@@ -296,7 +296,6 @@ namespace rsa
 					const auto d = rhs;
 					auto n = std::move(lhs);
 					auto& q = lhs;
-					rsa::utils::die_if(!q.is_zero());
 
 					auto i = (n.get_most_significant_bit() - d.get_most_significant_bit());
 					auto dt = d << i;
@@ -326,7 +325,6 @@ namespace rsa
 					const auto d = rhs;
 					auto& n = lhs;
 					auto q = big_uint<block_t>();
-					rsa::utils::die_if(!q.is_zero());
 
 					auto i = (n.get_most_significant_bit() - d.get_most_significant_bit());
 					auto dt = d << i;

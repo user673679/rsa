@@ -851,76 +851,270 @@ namespace rsa
 				}
 			}
 
-			// TODO: 
+			inline void div_test(big_uint<std::uint16_t>& quotient, big_uint<std::uint16_t>& remainder, big_uint<std::uint16_t> const& lhs, big_uint<std::uint16_t> const& rhs)
+			{
+				quotient.data().clear();
+				remainder.data().clear();
+
+				using block_t = std::uint16_t;
+				using double_block_t = std::uint32_t;
+
+				if (rhs.is_zero())
+					throw std::invalid_argument("divisor cannot be zero.");
+
+				if (lhs < rhs) { remainder = lhs; quotient.data().clear(); return; }
+				if (lhs == rhs) { quotient.data().clear(); quotient.data().push_back(1u); return; }
+
+				if (lhs.data().size() == 1u && rhs.data().size() == 1u)
+				{
+					quotient = static_cast<block_t>(lhs.data()[0] / rhs.data()[0]);
+					remainder = static_cast<block_t>(lhs.data()[0] % rhs.data()[0]);
+
+					utils::trim(remainder);
+					return;
+				}
+
+				auto const get_num_leading_zeros = [] (block_t x)
+				{
+					rsa::utils::die_if(x == 0);
+
+					auto count = std::size_t{ 0 };
+
+					while (x != 0)
+					{
+						++count;
+						x >>= 1;
+					}
+
+					return meta::digits<block_t>() - count;
+				};
+
+				auto const promote = [] (double_block_t b) { return b << meta::digits<block_t>(); };
+				auto const demote = [] (double_block_t b) { return b >> meta::digits<block_t>(); };
+				auto const checked_sub = [] (block_t& out, block_t a, block_t b) { return ((out = a - b) > a); };
+
+				{
+					auto d = rhs;
+					auto& n = remainder;
+					remainder = lhs;
+					auto& q = quotient;
+
+					q.data().resize(n.data().size() - d.data().size() + 1);
+
+					// single digit divisor
+					if (d.data().size() == 1)
+					{
+						auto k = double_block_t{ 0 };
+						auto const v = d.data()[0];
+
+						for (auto i = n.data().size(); i != 0; --i)
+						{
+							auto const index = i - 1;
+							k = (k << meta::digits<block_t>()) + n.data()[index];
+							q.data()[index] = static_cast<block_t>(k / v);
+							k -= static_cast<double_block_t>(q.data()[index]) * v;
+						}
+
+						n.data().clear();
+
+						if (k != 0)
+							n.data().push_back(static_cast<block_t>(k));
+
+						utils::trim(q);
+
+						return;
+					}
+
+					auto const b = double_block_t{ 1 } << meta::digits<block_t>();
+					auto const ns = n.data().size(); // m
+					auto const ds = d.data().size(); // n
+
+					auto shift = get_num_leading_zeros(d.data().back());
+					d <<= shift;
+					n <<= shift;
+
+					if (n.data().size() == ns)
+						n.data().push_back(block_t{ 0 });
+
+					for (auto i_outer = (ns - ds) + 1; i_outer != 0; --i_outer)
+					{
+						auto const j = i_outer - 1;
+
+						// take the top two blocks of n, divide by top block of d, calc remainder
+						auto v = d.data()[ds - 1];
+						auto n_block = promote(n.data()[j + ds]) | n.data()[j + ds - 1];
+						auto qhat = n_block / v;
+						auto rhat = n_block - qhat * v;
+
+						// q is too big or (looking at next block) remainder is smaller than what will be taken away
+						while (qhat >= b || (qhat * d.data()[ds - 2]) > promote(rhat) + n.data()[j + ds - 2])
+						{
+							qhat -= 1; rhat += v;
+							if (rhat >= b) break;
+						}
+
+						// qhat is now correct, or 1 too high (extremely rare)
+
+						// multiply divisor by qhat and subtract from n
+						auto underflow = false;
+						{
+							auto k = double_block_t{ 0 };
+							for (auto i = std::size_t{ 0 }; i != ds; ++i)
+							{
+								k += qhat * d.data()[i];
+								auto const borrow = checked_sub(n.data()[i + j], n.data()[i + j], static_cast<block_t>(k));
+								k = demote(k) + (borrow ? block_t{ 1 } : block_t{ 0 });
+							}
+
+							if (k != 0)
+								underflow |= checked_sub(n.data()[j + ds], n.data()[j + ds], static_cast<block_t>(k));
+						}
+
+						// set quotient
+						q.data()[j] = static_cast<block_t>(qhat);
+
+						// underflow! (qhat was 1 too high)
+						// decrement q and add back one divisor to the remainder
+						if (underflow)
+						{
+							q.data()[j] = q.data()[j] - 1;
+
+							auto k = double_block_t{ 0 };
+							for (auto i = std::size_t{ 0 }; i != ds; ++i)
+							{
+								k += n.data()[i + j] + d.data()[i];
+								n.data()[i + j] = static_cast<block_t>(k);
+								k >>= meta::digits<block_t>();
+							}
+
+							n.data()[j + ds] += static_cast<block_t>(k);
+						}
+					}
+
+					utils::trim(q);
+
+					// shift remainder back
+					utils::trim(n);
+					n >>= shift;
+				}
+			}
+
+			// TODO:
+			// test the above vs divmnu for all the divmnu cases listed.
 			// use normal version and new version inside operator. throw when the answer is different.
 			// same for add, sub, mul.
-
-			//template<>
-			//inline void mod_assign(big_uint<std::uint32_t>& lhs, big_uint<std::uint32_t> const& rhs)
-			//{
-			//	using block_t = std::uint32_t;
-			//	using double_block_t = std::uint64_t;
-
-			//	if (rhs.is_zero())
-			//		throw std::invalid_argument("divisor cannot be zero.");
-
-			//	if (lhs < rhs) { return; }
-			//	if (lhs == rhs) { lhs.data().clear(); return; }
-
-			//	{
-			//		const auto d = rhs;
-			//		auto& n = lhs;
-			//		auto q = big_uint<block_t>();
-			//		rsa::utils::die_if(!q.is_zero());
-
-			//		const auto& d_data = d.data();
-			//		auto& n_data = n.data();
-			//		auto& q_data = q.data();
-			//		q_data.resize(n_data.size()); // could this be based on the shift?
-
-			//		auto dt = d;
-			//		auto& dt_data = dt.data();
-
-			//		auto shift = (n_data.size() - d_data.size());
-			//		dt_data.insert(dt_data.begin(), shift, block_t{ 0 });
-
-			//		//std::cout << n_data.back() << " / " << d_data.back() << std::endl;
-
-			//		auto carry = double_block_t{ 0 };
-
-			//		for (auto i = n_data.size(); n >= d && i != 0; --i)
-			//		{
-			//			carry <<= meta::digits<block_t>();
-
-			//			auto n_index = i - 1u;
-
-			//			while (dt > n && shift) { --shift; dt_data.erase(dt_data.begin()); }
-
-			//			carry += n_data[n_index];
-
-			//			if (carry > dt_data.back())
-			//			{
-			//				auto div = carry / dt_data.back();
-			//				q_data[shift] += static_cast<block_t>(div);
-			//				if (div > meta::max<block_t>()) q_data[shift + 1u] += static_cast<block_t>(div >> meta::digits<block_t>());
-
-			//				auto mul = div * dt_data.back();
-			//				carry -= mul;
-			//				n_data[n_index] = static_cast<block_t>(carry);
-			//				if (carry > meta::max<block_t>()) n_data[n_index + 1u] += static_cast<block_t>(carry >> meta::digits<block_t>());
-
-			//				utils::trim(n);
-			//			}
-			//		}
-
-			//		// hmm... what to do?
-
-			//		utils::trim(q);
-			//	}
-			//}
 
 		} // ops
 
 	} // math
 
 } // rsa
+
+#include <stdio.h>
+#include <stdlib.h>     //To define "exit", req'd by XLC.
+#include <malloc.h>
+
+#pragma warning(push)
+#pragma warning(disable: 4244 4554)
+
+#define max(x, y) ((x) > (y) ? (x) : (y))
+
+inline int nlz(unsigned x) {
+	int n;
+
+	if (x == 0) return(32);
+	n = 0;
+	if (x <= 0x0000FFFF) { n = n + 16; x = x << 16; }
+	if (x <= 0x00FFFFFF) { n = n + 8; x = x << 8; }
+	if (x <= 0x0FFFFFFF) { n = n + 4; x = x << 4; }
+	if (x <= 0x3FFFFFFF) { n = n + 2; x = x << 2; }
+	if (x <= 0x7FFFFFFF) { n = n + 1; }
+	return n;
+}
+
+inline int divmnu(unsigned short q[], unsigned short r[], const unsigned short u[], const unsigned short v[], int m, int n) {
+
+	const unsigned b = 65536; // Number base (16 bits).
+	unsigned short *un, *vn;  // Normalized form of u, v.
+	unsigned qhat;            // Estimated quotient digit.
+	unsigned rhat;            // A remainder.
+	unsigned p;               // Product of two digits.
+	int s, i, j, t, k;
+
+	if (m < n || n <= 0 || v[n - 1] == 0)
+		return 1;              // Return if invalid param.
+
+	if (n == 1) {                        // Take care of
+		k = 0;                            // the case of a
+		for (j = m - 1; j >= 0; j--) {    // single-digit
+			q[j] = (k*b + u[j]) / v[0];      // divisor here.
+			k = (k*b + u[j]) - q[j] * v[0];
+		}
+		if (r != NULL) r[0] = k;
+		return 0;
+	}
+
+	// Normalize by shifting v left just enough so that
+	// its high-order bit is on, and shift u left the
+	// same amount.  We may have to append a high-order
+	// digit on the dividend; we do that unconditionally.
+
+	s = nlz(v[n - 1]) - 16;        // 0 <= s <= 15.
+	vn = (unsigned short *)_alloca(2 * n);
+	for (i = n - 1; i > 0; i--)
+		vn[i] = (v[i] << s) | (v[i - 1] >> 16 - s);
+	vn[0] = v[0] << s;
+
+	un = (unsigned short *)_alloca(2 * (m + 1));
+	un[m] = u[m - 1] >> 16 - s;
+	for (i = m - 1; i > 0; i--)
+		un[i] = (u[i] << s) | (u[i - 1] >> 16 - s);
+	un[0] = u[0] << s;
+
+	for (j = m - n; j >= 0; j--) {       // Main loop.
+										 // Compute estimate qhat of q[j].
+		qhat = (un[j + n] * b + un[j + n - 1]) / vn[n - 1];
+		rhat = (un[j + n] * b + un[j + n - 1]) - qhat*vn[n - 1];
+	again:
+		if (qhat >= b || qhat*vn[n - 2] > b*rhat + un[j + n - 2])
+		{
+			qhat = qhat - 1;
+			rhat = rhat + vn[n - 1];
+			if (rhat < b) goto again;
+		}
+
+		// Multiply and subtract.
+		k = 0;
+		for (i = 0; i < n; i++) {
+			p = qhat*vn[i];
+			t = un[i + j] - k - (p & 0xFFFF);
+			un[i + j] = t;
+			k = (p >> 16) - (t >> 16);
+		}
+		t = un[j + n] - k;
+		un[j + n] = t;
+
+		q[j] = qhat;              // Store quotient digit.
+		if (t < 0) {              // If we subtracted too
+			q[j] = q[j] - 1;       // much, add back.
+			k = 0;
+			for (i = 0; i < n; i++) {
+				t = un[i + j] + vn[i] + k;
+				un[i + j] = t;
+				k = t >> 16;
+			}
+			un[j + n] = un[j + n] + k;
+		}
+	} // End j.
+	  // If the caller wants the remainder, unnormalize
+	  // it and pass it back.
+	if (r != NULL) {
+		for (i = 0; i < n; i++)
+			r[i] = (un[i] >> s) | (un[i + 1] << 16 - s);
+	}
+	return 0;
+}
+
+#undef max
+
+#pragma warning(pop)
