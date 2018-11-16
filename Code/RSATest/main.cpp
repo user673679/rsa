@@ -12,8 +12,6 @@ int main(int argc, char** argv)
 
 
 // TODO (now):
-	// commit
-	// remove divmnu
 	// alter divtest to work with div_assign and mod_assign
 	// tidy up test cases
 	// test new div / mod in benchmarks
