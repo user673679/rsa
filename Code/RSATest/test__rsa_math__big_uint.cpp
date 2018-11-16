@@ -959,7 +959,11 @@ namespace test
 		//	EXPECT_EQ(a / b, q);
 		//}
 
-		auto bu16 = [] (std::vector<std::uint16_t> const& values)
+		using v16 = std::vector<std::uint16_t>;
+
+		auto const zero = rsa::math::big_uint_16();
+
+		auto bu16 = [] (v16 const& values)
 		{
 			auto result = rsa::math::big_uint_16();
 
@@ -971,180 +975,53 @@ namespace test
 			return result;
 		};
 
-		auto const zero = rsa::math::big_uint_16();
+		auto run_test = [&] (v16 const& dividend, v16 const& divisor, v16 const& expect_quotient, v16 const& expect_remainder)
+		{
+			auto q = zero; auto r = zero;
+			rsa::math::ops::div_test(q, r, bu16(dividend), bu16(divisor));
+			return (q == bu16(expect_quotient) && r == bu16(expect_remainder));
+		};
 
-		// 1, 1, 3, 0, 1, 1,
+		// copied from hacker's delight
+		auto test_cases = std::vector<std::vector<v16>>
+		{
+			{ { 7 }, { 1, 3 }, { 0 }, { 7, 0 } },
+			{ { 0, 0 }, { 1, 0 }, { 0 }, { 0 } },
+			{ { 3 }, { 2 }, { 1 }, { 1 } },
+			{ { 3 }, { 3 }, { 1 }, { 0 } },
+			{ { 3 }, { 4 }, { 0 }, { 3 } },
+			{ { 0 }, { 0xffff }, { 0 }, { 0 } },
+			{ { 0xffff }, { 1 }, { 0xffff }, { 0 } },
+			{ { 0xffff }, { 0xffff }, { 1 }, { 0 } },
+			{ { 0xffff }, { 3 }, { 0x5555 }, { 0 } },
+			{ { 0xffff, 0xffff }, { 1 }, { 0xffff, 0xffff }, { 0 } },
+			{ { 0xffff, 0xffff }, { 0xffff }, { 1, 1 }, { 0 } },
+			{ { 0xffff, 0xfffe }, { 0xffff }, { 0xffff, 0 }, { 0xfffe } },
+			{ { 0x5678, 0x1234 }, { 0x9abc }, { 0x1e1e, 0 }, { 0x2c70 } },
+			{ { 0, 0 }, { 0, 1 }, { 0 }, { 0 } },
+			{ { 0, 7 }, { 0, 3 }, { 2 }, { 0, 1 } },
+			{ { 5, 7 }, { 0, 3 }, { 2 }, { 5, 1 } },
+			{ { 0, 6 }, { 0, 2 }, { 3 }, { 0 } },
+			{ { 0x0001, 0x8000 }, { 0x7000, 0x4000 }, { 1 }, { 0x9001, 0x3fff } },
+			{ { 0x789a, 0xbcde }, { 0x789a, 0xbcde }, { 1 }, { 0 } },
+			{ { 0x789b, 0xbcde }, { 0x789a, 0xbcde }, { 1 }, { 1, 0 } },
+			{ { 0x7899, 0xbcde }, { 0x789a, 0xbcde }, { 0 }, { 0x7899, 0xbcde } },
+			{ { 0xffff, 0xffff }, { 0xffff, 0xffff }, { 1 }, { 0 } },
+			{ { 0xffff, 0xffff }, { 0x0000, 0x0001 }, { 0xffff }, { 0xffff, 0x0000 } },
+			{ { 0x89ab, 0x4567, 0x0123 }, { 0x0000, 0x0001 }, { 0x4567, 0x0123 }, { 0x89ab, 0x0000 } },
+			{ { 0x0000, 0xfffe, 0x8000 }, { 0xffff, 0x8000 }, { 0xffff, 0x0000 }, { 0xffff, 0x7fff } }, // qhat = b + 1
+			{ { 0x0003, 0x0000, 0x8000 }, { 0x0001, 0x0000, 0x2000 }, { 0x0003 }, { 0, 0, 0x2000 } }, // requires add back step
+			{ { 0, 0, 0x8000, 0x7fff }, { 1, 0, 0x8000 }, { 0xfffe, 0 }, { 2, 0xffff, 0x7fff } }, // requires add back step
+			{ { 0, 0xfffe, 0, 0x8000 }, { 0xffff, 0, 0x8000 }, { 0xffff, 0 }, { 0xffff, 0xffff, 0x7fff } }, // mult-sub quantity can't be treated as signed (?)
+		};
+
+		for (auto const& t : test_cases)
+			EXPECT_TRUE(run_test(t[0], t[1], t[2], t[3]));
+
+		// division by zero
 		{
 			auto q = zero; auto r = zero;
 			EXPECT_THROW(rsa::math::ops::div_test(q, r, bu16({ 3u }), bu16({ 0u })), std::invalid_argument);
-		}
-		// 1, 2, 7, 1, 3, 0, 7, 0,
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 7 }), bu16({ 1, 3 }));
-			EXPECT_EQ(q, 0u); EXPECT_EQ(r, 7u);
-		}
-		// 2, 2, 0, 0, 1, 0, 0, 0, 0, 
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 0, 0 }), bu16({ 1, 0 }));
-			EXPECT_EQ(q, 0u); EXPECT_EQ(r, 0u);
-		}
-		// 1, 1, 3, 2, 1, 1,
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 3 }), bu16({ 2 }));
-			EXPECT_EQ(q, 1u); EXPECT_EQ(r, 1u);
-		}
-		// 1, 1, 3, 3, 1, 0,
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 3 }), bu16({ 3 }));
-			EXPECT_EQ(q, 1u); EXPECT_EQ(r, 0u);
-		}
-		// 1, 1, 3, 4, 0, 3,
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 3 }), bu16({ 4 }));
-			EXPECT_EQ(q, 0u); EXPECT_EQ(r, 3u);
-		}
-		// 1, 1, 0, 0xffff, 0, 0,
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 0 }), bu16({ 0xffff }));
-			EXPECT_EQ(q, 0u); EXPECT_EQ(r, 0u);
-		}
-		// 1, 1, 0xffff, 1, 0xffff, 0,
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 0xffff }), bu16({ 1 }));
-			EXPECT_EQ(q, 0xffffu); EXPECT_EQ(r, 0u);
-		}
-		// 1, 1, 0xffff, 0xffff, 1, 0,
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 0xffff }), bu16({ 0xffff }));
-			EXPECT_EQ(q, 1u); EXPECT_EQ(r, 0u);
-		}
-		// 1, 1, 0xffff, 3, 0x5555, 0,
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 0xffff }), bu16({ 3 }));
-			EXPECT_EQ(q, 0x5555u); EXPECT_EQ(r, 0u);
-		}
-		// 2, 1, 0xffff, 0xffff, 1, 0xffff, 0xffff, 0,
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 0xffff, 0xffff }), bu16({ 1 }));
-			EXPECT_EQ(q, bu16({ 0xffff, 0xffff })); EXPECT_EQ(r, 0u);
-		}
-		// 2, 1, 0xffff, 0xffff, 0xffff, 1, 1, 0,
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 0xffff, 0xffff }), bu16({ 0xffff }));
-			EXPECT_EQ(q, bu16({ 1, 1 })); EXPECT_EQ(r, 0u);
-		}
-		// 2, 1, 0xffff, 0xfffe, 0xffff, 0xffff, 0, 0xfffe,
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 0xffff, 0xfffe }), bu16({ 0xffff }));
-			EXPECT_EQ(q, bu16({ 0xffff, 0 })); EXPECT_EQ(r, 0xfffeu);
-		}
-		// 2, 1, 0x5678, 0x1234, 0x9abc, 0x1e1e, 0, 0x2c70,
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 0x5678, 0x1234 }), bu16({ 0x9abc }));
-			EXPECT_EQ(q, bu16({ 0x1e1e, 0 })); EXPECT_EQ(r, 0x2c70u);
-		}
-		// 2, 2, 0, 0, 0, 1, 0, 0, 0,
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 0, 0 }), bu16({ 0, 1 }));
-			EXPECT_EQ(q, 0u); EXPECT_EQ(r, 0u);
-		}
-		// 2, 2, 0, 7, 0, 3, 2, 0, 1,
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 0, 7 }), bu16({ 0, 3 }));
-			EXPECT_EQ(q, 2u); EXPECT_EQ(r, bu16({ 0, 1 }));
-		}
-		// 2, 2, 5, 7, 0, 3, 2, 5, 1,
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 5, 7 }), bu16({ 0, 3 }));
-			EXPECT_EQ(q, 2u); EXPECT_EQ(r, bu16({ 5, 1 }));
-		}
-		// 2, 2, 0, 6, 0, 2, 3, 0, 0,
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 0, 6 }), bu16({ 0, 2 }));
-			EXPECT_EQ(q, 3u); EXPECT_EQ(r, 0u);
-		}
-		// 2, 2, 0x0001, 0x8000, 0x7000, 0x4000, 0x0001, 0x9001, 0x3fff,
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 0x0001, 0x8000 }), bu16({ 0x7000, 0x4000 }));
-			EXPECT_EQ(q, 1u); EXPECT_EQ(r, bu16({ 0x9001, 0x3fff }));
-		}
-		// 2, 2, 0x789a, 0xbcde, 0x789a, 0xbcde, 1, 0, 0,
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 0x789a, 0xbcde}), bu16({ 0x789a, 0xbcde}));
-			EXPECT_EQ(q, 1u); EXPECT_EQ(r, 0u);
-		}
-		// 2, 2, 0x789b, 0xbcde, 0x789a, 0xbcde, 1, 1, 0,
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 0x789b, 0xbcde }), bu16({ 0x789a, 0xbcde }));
-			EXPECT_EQ(q, 1u); EXPECT_EQ(r, bu16({ 1, 0 }));
-		}
-		// 2, 2, 0x7899, 0xbcde, 0x789a, 0xbcde, 0, 0x7899, 0xbcde,
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 0x7899, 0xbcde }), bu16({ 0x789a, 0xbcde }));
-			EXPECT_EQ(q, 0u); EXPECT_EQ(r, bu16({ 0x7899, 0xbcde }));
-		}
-		// 2, 2, 0xffff, 0xffff, 0xffff, 0xffff, 1, 0, 0,
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 0xffff, 0xffff}), bu16({ 0xffff, 0xffff }));
-			EXPECT_EQ(q, 1u); EXPECT_EQ(r, 0u);
-		}
-		// 2, 2, 0xffff, 0xffff, 0x0000, 0x0001, 0xffff, 0xffff, 0,
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 0xffff, 0xffff }), bu16({ 0x0000, 0x0001 }));
-			EXPECT_EQ(q, bu16({ 0xffff })); EXPECT_EQ(r, bu16({ 0xffff, 0x0000 }));
-		}
-		// 3, 2, 0x89ab, 0x4567, 0x0123, 0x0000, 0x0001, 0x4567, 0x0123, 0x89ab, 0,
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 0x89ab, 0x4567, 0x0123 }), bu16({ 0x0000, 0x0001 }));
-			EXPECT_EQ(q, bu16({ 0x4567, 0x0123 })); EXPECT_EQ(r, bu16({ 0x89ab, 0x0000 }));
-		}
-		// 3, 2, 0x0000, 0xfffe, 0x8000, 0xffff, 0x8000, 0xffff, 0x0000, 0xffff, 0x7fff, // qhat = b + 1
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 0x0000, 0xfffe, 0x8000 }), bu16({ 0xffff, 0x8000 }));
-			EXPECT_EQ(q, bu16({ 0xffff, 0x0000 })); EXPECT_EQ(r, bu16({ 0xffff, 0x7fff }));
-		}
-		// 3, 3, 0x0003, 0x0000, 0x8000, 0x0001, 0x0000, 0x2000, 0x0003, 0, 0, 0x2000 // adding back step required
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 0x0003, 0x0000, 0x8000 }), bu16({ 0x0001, 0x0000, 0x2000 }));
-			EXPECT_EQ(q, bu16({ 0x0003 })); EXPECT_EQ(r, bu16({ 0, 0, 0x2000 }));
-		}
-		// 4, 3, 0, 0, 0x8000, 0x7fff, 1, 0, 0x8000, 0xfffe, 0, 2, 0xffff, 0x7fff, // adding back step required
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 0, 0, 0x8000, 0x7fff }), bu16({ 1, 0, 0x8000 }));
-			EXPECT_EQ(q, bu16({ 0xfffe, 0 })); EXPECT_EQ(r, bu16({ 2, 0xffff, 0x7fff }));
-		}
-		// 4, 3, 0, 0xfffe, 0, 0x8000, 0xffff, 0, 0x8000, 0xffff, 0, 0xffff, 0xffff, 0x7fff, // mult-sub quantity can't be treated as signed (?)
-		{
-			auto q = zero; auto r = zero;
-			rsa::math::ops::div_test(q, r, bu16({ 0, 0xfffe, 0, 0x8000 }), bu16({ 0xffff, 0, 0x8000 }));
-			EXPECT_EQ(q, bu16({ 0xffff, 0 })); EXPECT_EQ(r, bu16({ 0xffff, 0xffff, 0x7fff }));
 		}
 	}
 
