@@ -29,9 +29,6 @@ namespace rsa
 		template<>
 		struct block_traits<std::uint32_t> { using double_block_type = std::uint64_t; };
 
-		template<class block_t>
-		using double_block_t = typename block_traits<block_t>::double_block_type;
-
 
 		template<class block_t>
 		class big_uint
@@ -39,7 +36,7 @@ namespace rsa
 		public:
 
 			using block_type = block_t;
-			using double_block_type = double_block_t<block_type>;
+			using double_block_type = typename block_traits<block_type>::double_block_type;
 			using data_type = std::vector<block_type>;
 			using block_index_type = std::size_t;
 			using bit_index_type = std::size_t;
@@ -766,11 +763,10 @@ namespace rsa
 		namespace ops
 		{
 
-			template<>
-			inline void add_assign(big_uint<std::uint32_t>& a, big_uint<std::uint32_t> const& b)
+			template<class block_t>
+			inline void add_assign(big_uint<block_t>& a, big_uint<block_t> const& b)
 			{
-				using block_t = std::uint32_t;
-				using double_block_t = std::uint64_t;
+				using double_block_t = typename big_uint<block_t>::double_block_type;
 
 				if (b.is_zero())
 					return;
@@ -808,14 +804,13 @@ namespace rsa
 
 				// extend a if necessary
 				if (carry)
-					a_data.push_back(static_cast<std::uint32_t>(carry));
+					a_data.push_back(static_cast<block_t>(carry));
 			}
 
-			template<>
-			inline void sub_assign(big_uint<std::uint32_t>& a, big_uint<std::uint32_t> const& b)
+			template<class block_t>
+			inline void sub_assign(big_uint<block_t>& a, big_uint<block_t> const& b)
 			{
-				using block_t = std::uint32_t;
-				using double_block_t = std::uint64_t;
+				using double_block_t = typename big_uint<block_t>::double_block_type;
 
 				if (b.is_zero())
 					return;
@@ -849,11 +844,10 @@ namespace rsa
 				utils::trim(a);
 			}
 
-			template<>
-			inline void mul_assign(big_uint<std::uint32_t>& lhs, big_uint<std::uint32_t> const& rhs)
+			template<class block_t>
+			inline void mul_assign(big_uint<block_t>& lhs, big_uint<block_t> const& rhs)
 			{
-				using block_t = std::uint32_t;
-				using double_block_t = std::uint64_t;
+				using double_block_t = typename big_uint<block_t>::double_block_type;
 
 				if (lhs.is_zero()) return;
 				if (rhs.is_zero()) { lhs.data().clear(); return; }
@@ -897,9 +891,11 @@ namespace rsa
 				}
 			}
 
-			template<class block_t, class double_block_t>
+			template<class block_t>
 			inline void div_test(big_uint<block_t>& quotient, big_uint<block_t>& remainder, big_uint<block_t> dividend, big_uint<block_t> divisor)
 			{
+				using double_block_t = typename big_uint<block_t>::double_block_type;
+
 				quotient.data().clear();
 				remainder.data().clear();
 
@@ -1036,9 +1032,11 @@ namespace rsa
 				}
 			}
 
-			template<>
-			inline void div_assign(big_uint<std::uint32_t>& lhs, big_uint<std::uint32_t> const& rhs)
+			template<class block_t>
+			inline void div_assign(big_uint<block_t>& lhs, big_uint<block_t> const& rhs)
 			{
+				using double_block_t = typename big_uint<block_t>::double_block_type;
+
 				if (rhs.is_zero())
 					throw std::invalid_argument("divisor cannot be zero.");
 
@@ -1047,21 +1045,23 @@ namespace rsa
 
 				if (lhs.data().size() == 1u && rhs.data().size() == 1u)
 				{
-					lhs = static_cast<std::uint32_t>(lhs.data()[0] / rhs.data()[0]);
+					lhs = static_cast<block_t>(lhs.data()[0] / rhs.data()[0]);
 					return;
 				}
 
 				{
-					auto q = big_uint<std::uint32_t>();
-					auto r = big_uint<std::uint32_t>();
-					div_test<std::uint32_t, std::uint64_t>(q, r, lhs, rhs);
+					auto q = big_uint<block_t>();
+					auto r = big_uint<block_t>();
+					div_test(q, r, lhs, rhs);
 					lhs = std::move(q);
 				}
 			}
 
-			template<>
-			inline void mod_assign(big_uint<std::uint32_t>& lhs, big_uint<std::uint32_t> const& rhs)
+			template<class block_t>
+			inline void mod_assign(big_uint<block_t>& lhs, big_uint<block_t> const& rhs)
 			{
+				using double_block_t = typename big_uint<block_t>::double_block_type;
+
 				if (rhs.is_zero())
 					throw std::invalid_argument("divisor cannot be zero.");
 
@@ -1070,20 +1070,20 @@ namespace rsa
 
 				if (lhs.data().size() == 1u && rhs.data().size() == 1u)
 				{
-					lhs = static_cast<std::uint32_t>(lhs.data()[0] % rhs.data()[0]);
+					lhs = static_cast<block_t>(lhs.data()[0] % rhs.data()[0]);
 					utils::trim(lhs);
 					return;
 				}
 
 				{
-					auto q = big_uint<std::uint32_t>();
-					auto r = big_uint<std::uint32_t>();
-					div_test<std::uint32_t, std::uint64_t>(q, r, lhs, rhs);
+					auto q = big_uint<block_t>();
+					auto r = big_uint<block_t>();
+					div_test(q, r, lhs, rhs);
 					lhs = std::move(r);
 				}
 			}
 
-			template<class block_t, class double_block_t>
+			template<class block_t>
 			void divmod(big_uint<block_t>& quotient, big_uint<block_t>& remainder, big_uint<block_t> const& dividend, big_uint<block_t> const& divisor)
 			{
 				quotient.data().clear();
@@ -1104,7 +1104,7 @@ namespace rsa
 					return;
 				}
 
-				div_test<block_t, double_block_t>(quotient, remainder, dividend, divisor);
+				div_test(quotient, remainder, dividend, divisor);
 			}
 
 		} // ops

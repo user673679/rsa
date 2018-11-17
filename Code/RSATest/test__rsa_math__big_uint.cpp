@@ -990,7 +990,7 @@ namespace test
 		// division by zero
 		{
 			auto q = rsa::math::big_uint_16(); auto r = rsa::math::big_uint_16();
-			EXPECT_THROW((rsa::math::ops::divmod<std::uint16_t, std::uint32_t>(q, r, { 3u }, { 0u })), std::invalid_argument);
+			EXPECT_THROW((rsa::math::ops::divmod(q, r, { 3u }, { 0u })), std::invalid_argument);
 		}
 
 		// TODO: other early discard cases
@@ -998,14 +998,14 @@ namespace test
 		auto run_test16 = [&] (rsa::math::big_uint_16 const& dividend, rsa::math::big_uint_16 const& divisor, rsa::math::big_uint_16 const& expect_quotient, rsa::math::big_uint_16 const& expect_remainder)
 		{
 			auto q = rsa::math::big_uint_16(); auto r = rsa::math::big_uint_16();
-			rsa::math::ops::divmod<std::uint16_t, std::uint32_t>(q, r, dividend, divisor);
+			rsa::math::ops::divmod(q, r, dividend, divisor);
 			return (q == expect_quotient && r == expect_remainder);
 		};
 
 		auto run_test32 = [&] (rsa::math::big_uint_32 const& dividend, rsa::math::big_uint_32 const& divisor, rsa::math::big_uint_32 const& expect_quotient, rsa::math::big_uint_32 const& expect_remainder)
 		{
 			auto q = rsa::math::big_uint_32(); auto r = rsa::math::big_uint_32();
-			rsa::math::ops::divmod<std::uint32_t, std::uint64_t>(q, r, dividend, divisor);
+			rsa::math::ops::divmod(q, r, dividend, divisor);
 			return (q == expect_quotient && r == expect_remainder);
 		};
 
