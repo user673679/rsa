@@ -5,16 +5,14 @@ int main(int argc, char** argv)
 {
 	testing::InitGoogleTest(&argc, argv);
 
-	testing::GTEST_FLAG(filter) = "*math_big_uint__newdiv";
+	//testing::GTEST_FLAG(filter) = "*math_big_uint_newdiv_broken";
 
 	return RUN_ALL_TESTS();
 }
 
 
 // TODO (now):
-	// alter divtest to work with div_assign and mod_assign
-	// test new div / mod in benchmarks
-	
+
 	// add stuff to utils (db_t(), b_t(), demote -> high_to_low(), promote -> low_to_high(), checked_sub, get_num_leading_zeros)
 	// use the utils stuff
 	

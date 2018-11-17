@@ -13,6 +13,8 @@
 
 #include <iostream>
 
+int divmnu(unsigned short q[], unsigned short r[], const unsigned short u[], const unsigned short v[], int m, int n);
+
 namespace rsa
 {
 
@@ -851,19 +853,17 @@ namespace rsa
 				}
 			}
 
-			inline void div_test(big_uint<std::uint16_t>& quotient, big_uint<std::uint16_t>& remainder, big_uint<std::uint16_t> const& lhs, big_uint<std::uint16_t> const& rhs)
+			template<class block_t, class double_block_t>
+			inline void div_test(big_uint<block_t>& quotient, big_uint<block_t>& remainder, big_uint<block_t> const& lhs, big_uint<block_t> const& rhs)
 			{
 				quotient.data().clear();
 				remainder.data().clear();
-
-				using block_t = std::uint16_t;
-				using double_block_t = std::uint32_t;
 
 				if (rhs.is_zero())
 					throw std::invalid_argument("divisor cannot be zero.");
 
 				if (lhs < rhs) { remainder = lhs; quotient.data().clear(); return; }
-				if (lhs == rhs) { quotient.data().clear(); quotient.data().push_back(1u); return; }
+				if (lhs == rhs) { quotient.data().clear(); quotient.data().push_back(1); return; }
 
 				if (lhs.data().size() == 1u && rhs.data().size() == 1u)
 				{
@@ -891,7 +891,9 @@ namespace rsa
 
 				auto const promote = [] (double_block_t b) { return b << meta::digits<block_t>(); };
 				auto const demote = [] (double_block_t b) { return b >> meta::digits<block_t>(); };
-				auto const checked_sub = [] (block_t& out, block_t a, block_t b) { return ((out = a - b) > a); };
+				auto const checked_sub = [] (block_t& out, block_t a, block_t b) {
+					return ((out = a - b) > a);
+				};
 
 				{
 					auto d = rhs;
@@ -961,9 +963,10 @@ namespace rsa
 							auto k = double_block_t{ 0 };
 							for (auto i = std::size_t{ 0 }; i != ds; ++i)
 							{
-								k += qhat * d.data()[i];
-								auto const borrow = checked_sub(n.data()[i + j], n.data()[i + j], static_cast<block_t>(k));
-								k = demote(k) + (borrow ? block_t{ 1 } : block_t{ 0 });
+								auto const p = qhat * d.data()[i];
+								auto const t = n.data()[i + j] - k - static_cast<block_t>(p);
+								n.data()[i + j] = static_cast<block_t>(t);
+								k = demote(p) - (static_cast<std::make_signed_t<double_block_t>>(t) >> meta::digits<block_t>());
 							}
 
 							if (k != 0)
@@ -999,8 +1002,225 @@ namespace rsa
 				}
 			}
 
+			template<class block_t>
+			void pvec(std::vector<block_t> const& vec)
+			{
+				std::cout << "{ ";
+				for (auto v : vec)
+					std::cout << v << ", ";
+				std::cout << "}, ";
+			}
+
+			inline int call_divmnu(rsa::math::big_uint_16& q, rsa::math::big_uint_16& r, rsa::math::big_uint_16 const& a, rsa::math::big_uint_16 const& b)
+			{
+				if (b.is_zero())
+					throw std::invalid_argument("divisor cannot be zero.");
+
+				if (a < b) { r = a; q.data().clear(); return 0; }
+				if (a == b) { q.data().clear(); q.data().push_back(1); return 0; }
+
+				if (a.data().size() == 1u && b.data().size() == 1u)
+				{
+					q = static_cast<std::uint16_t>(a.data()[0] / b.data()[0]);
+					r = static_cast<std::uint16_t>(a.data()[0] % b.data()[0]);
+
+					utils::trim(r);
+					return 0;
+				}
+
+				auto m = static_cast<int>(a.data().size());
+				auto n = static_cast<int>(b.data().size());
+				q.data().resize(std::max(m - n + 1, 1));
+				r.data().resize(n);
+
+				auto result = divmnu(q.data().data(), r.data().data(), a.data().data(), b.data().data(), m, n);
+
+				rsa::math::ops::utils::trim(q);
+				rsa::math::ops::utils::trim(r);
+				return result;
+			}
+
+			template<>
+			inline void div_assign(big_uint<std::uint32_t>& lhs, big_uint<std::uint32_t> const& rhs)
+			{
+				if (rhs.is_zero())
+					throw std::invalid_argument("divisor cannot be zero.");
+
+				if (lhs < rhs) { lhs.data().clear(); return; }
+				if (lhs == rhs) { lhs.data().clear(); lhs.data().push_back(1); return; }
+
+				auto q1 = big_uint<std::uint32_t>();
+				auto r1 = big_uint<std::uint32_t>();
+				divmod(q1, r1, lhs, rhs);
+
+				auto q2 = big_uint<std::uint32_t>();
+				auto r2 = big_uint<std::uint32_t>();
+				div_test<std::uint32_t, std::uint64_t>(q2, r2, lhs, rhs);
+
+				if (q2 != q1 || r2 != r1)
+				{
+					std::cout << std::hex;
+					std::cout << "div: ";
+					std::cout << "{ ";
+					pvec(lhs.data());
+					pvec(rhs.data());
+					pvec(q1.data());
+					pvec(r1.data());
+					std::cout << "},\n";
+				}
+
+				lhs = q1;
+			}
+
+			template<>
+			inline void mod_assign(big_uint<std::uint32_t>& lhs, big_uint<std::uint32_t> const& rhs)
+			{
+				if (rhs.is_zero())
+					throw std::invalid_argument("divisor cannot be zero.");
+
+				if (lhs < rhs) { return; }
+				if (lhs == rhs) { lhs.data().clear(); return; }
+
+
+				auto q1 = big_uint<std::uint32_t>();
+				auto r1 = big_uint<std::uint32_t>();
+				divmod(q1, r1, lhs, rhs);
+
+				//auto q1 = big_uint<std::uint16_t>();
+				//auto r1 = big_uint<std::uint16_t>();
+				//rsa::utils::die_if(call_divmnu(q1, r1, lhs, rhs) != 0);
+
+				auto q2 = big_uint<std::uint32_t>();
+				auto r2 = big_uint<std::uint32_t>();
+				div_test<std::uint32_t, std::uint64_t>(q2, r2, lhs, rhs);
+
+				if (q2 != q1 || r2 != r1)
+				{
+					std::cout << std::hex;
+					std::cout << "div: ";
+					std::cout << "{ ";
+					pvec(lhs.data());
+					pvec(rhs.data());
+					pvec(q1.data());
+					pvec(r1.data());
+					std::cout << "},\n";
+				}
+
+				lhs = r1;
+			}
+
 		} // ops
 
 	} // math
 
 } // rsa
+
+
+#include <stdio.h>
+#include <stdlib.h>     //To define "exit", req'd by XLC.
+#include <malloc.h>
+
+#pragma warning(push)
+#pragma warning(disable: 4244 4554)
+
+#define max(x, y) ((x) > (y) ? (x) : (y))
+
+inline int nlz(unsigned x) {
+	int n;
+
+	if (x == 0) return(32);
+	n = 0;
+	if (x <= 0x0000FFFF) { n = n + 16; x = x << 16; }
+	if (x <= 0x00FFFFFF) { n = n + 8; x = x << 8; }
+	if (x <= 0x0FFFFFFF) { n = n + 4; x = x << 4; }
+	if (x <= 0x3FFFFFFF) { n = n + 2; x = x << 2; }
+	if (x <= 0x7FFFFFFF) { n = n + 1; }
+	return n;
+}
+
+inline int divmnu(unsigned short q[], unsigned short r[], const unsigned short u[], const unsigned short v[], int m, int n) {
+
+	const unsigned b = 65536; // Number base (16 bits).
+	unsigned short *un, *vn;  // Normalized form of u, v.
+	unsigned qhat;            // Estimated quotient digit.
+	unsigned rhat;            // A remainder.
+	unsigned p;               // Product of two digits.
+	int s, i, j, t, k;
+
+	if (m < n || n <= 0 || v[n - 1] == 0)
+		return 1;              // Return if invalid param.
+
+	if (n == 1) {                        // Take care of
+		k = 0;                            // the case of a
+		for (j = m - 1; j >= 0; j--) {    // single-digit
+			q[j] = (k*b + u[j]) / v[0];      // divisor here.
+			k = (k*b + u[j]) - q[j] * v[0];
+		}
+		if (r != NULL) r[0] = k;
+		return 0;
+	}
+
+	// Normalize by shifting v left just enough so that
+	// its high-order bit is on, and shift u left the
+	// same amount.  We may have to append a high-order
+	// digit on the dividend; we do that unconditionally.
+
+	s = nlz(v[n - 1]) - 16;        // 0 <= s <= 15.
+	vn = (unsigned short *)_alloca(2 * n);
+	for (i = n - 1; i > 0; i--)
+		vn[i] = (v[i] << s) | (v[i - 1] >> 16 - s);
+	vn[0] = v[0] << s;
+
+	un = (unsigned short *)_alloca(2 * (m + 1));
+	un[m] = u[m - 1] >> 16 - s;
+	for (i = m - 1; i > 0; i--)
+		un[i] = (u[i] << s) | (u[i - 1] >> 16 - s);
+	un[0] = u[0] << s;
+
+	for (j = m - n; j >= 0; j--) {       // Main loop.
+										 // Compute estimate qhat of q[j].
+		qhat = (un[j + n] * b + un[j + n - 1]) / vn[n - 1];
+		rhat = (un[j + n] * b + un[j + n - 1]) - qhat*vn[n - 1];
+	again:
+		if (qhat >= b || qhat*vn[n - 2] > b*rhat + un[j + n - 2])
+		{
+			qhat = qhat - 1;
+			rhat = rhat + vn[n - 1];
+			if (rhat < b) goto again;
+		}
+
+		// Multiply and subtract.
+		k = 0;
+		for (i = 0; i < n; i++) {
+			p = qhat*vn[i];
+			t = un[i + j] - k - (p & 0xFFFF);
+			un[i + j] = t;
+			k = (p >> 16) - (t >> 16);
+		}
+		t = un[j + n] - k;
+		un[j + n] = t;
+
+		q[j] = qhat;              // Store quotient digit.
+		if (t < 0) {              // If we subtracted too
+			q[j] = q[j] - 1;       // much, add back.
+			k = 0;
+			for (i = 0; i < n; i++) {
+				t = un[i + j] + vn[i] + k;
+				un[i + j] = t;
+				k = t >> 16;
+			}
+			un[j + n] = un[j + n] + k;
+		}
+	} // End j.
+	  // If the caller wants the remainder, unnormalize
+	  // it and pass it back.
+	if (r != NULL) {
+		for (i = 0; i < n; i++)
+			r[i] = (un[i] >> s) | (un[i + 1] << 16 - s);
+	}
+	return 0;
+}
+
+#undef max
+
+#pragma warning(pop)

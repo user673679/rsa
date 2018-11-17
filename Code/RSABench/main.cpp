@@ -89,7 +89,7 @@
 
 static void BM_RSA_generate_prime_rm(benchmark::State& state)
 {
-	auto rng = std::mt19937_64();
+	auto rng = std::mt19937_64(5489u);
 	auto k = 20u;
 
 	for (auto _ : state)

@@ -284,37 +284,47 @@ namespace rsa
 			}
 
 			template<class block_t>
+			void divmod(big_uint<block_t>& quotient, big_uint<block_t>& remainder, big_uint<block_t> dividend, big_uint<block_t> const& divisor)
+			{
+				quotient.data().clear();
+				remainder.data().clear();
+
+				rsa::utils::die_if(divisor.is_zero());
+				rsa::utils::die_if(dividend < divisor);
+				rsa::utils::die_if(dividend == divisor);
+
+				auto i = (dividend.get_most_significant_bit() - divisor.get_most_significant_bit());
+				auto dt = divisor << i;
+
+				while (dividend >= divisor)
+				{
+					while (dt > dividend && i != 0u) { --i; dt >>= 1u; }
+
+					quotient.set_bit(i, true);
+					dividend -= dt;
+				}
+
+				remainder = std::move(dividend);
+			}
+
+			template<class block_t>
 			void div_assign(big_uint<block_t>& lhs, big_uint<block_t> const& rhs)
 			{
 				if (rhs.is_zero())
 					throw std::invalid_argument("divisor cannot be zero.");
 
 				if (lhs < rhs) { lhs.data().clear(); return; }
-				if (lhs == rhs) { lhs.data().clear(); lhs.data().push_back(1u); return; }
+				if (lhs == rhs) { lhs.data().clear(); lhs.data().push_back(1); return; }
 
 				{
-					const auto d = rhs;
-					auto n = std::move(lhs);
-					auto& q = lhs;
-
-					auto i = (n.get_most_significant_bit() - d.get_most_significant_bit());
-					auto dt = d << i;
-
-					while (n >= d)
-					{
-						while (dt > n && i != 0u) { --i; dt >>= 1u; }
-
-						q.set_bit(i, true);
-						n -= dt;
-					}
+					auto _ = big_uint<block_t>();
+					divmod(lhs, _, std::move(lhs), (std::addressof(lhs) == std::addressof(rhs)) ? big_uint<block_t>(rhs) : rhs);
 				}
 			}
 
 			template<class block_t>
 			void mod_assign(big_uint<block_t>& lhs, big_uint<block_t> const& rhs)
 			{
-				// similar to division, but lhs is the numerator, not the quotient.
-
 				if (rhs.is_zero())
 					throw std::invalid_argument("divisor cannot be zero.");
 
@@ -322,20 +332,8 @@ namespace rsa
 				if (lhs == rhs) { lhs.data().clear(); return; }
 
 				{
-					const auto d = rhs;
-					auto& n = lhs;
-					auto q = big_uint<block_t>();
-
-					auto i = (n.get_most_significant_bit() - d.get_most_significant_bit());
-					auto dt = d << i;
-
-					while (n >= d)
-					{
-						while (dt > n && i != 0u) { --i; dt >>= 1u; }
-
-						q.set_bit(i, true);
-						n -= dt;
-					}
+					auto _ = big_uint<block_t>();
+					divmod(_, lhs, std::move(lhs), (std::addressof(lhs) == std::addressof(rhs)) ? big_uint<block_t>(rhs) : rhs);
 				}
 			}
 
