@@ -987,57 +987,31 @@ namespace test
 
 	TEST(Test_RSA, math_big_uint_divmod)
 	{
-
-		using v16 = std::vector<std::uint16_t>;
-		using v32 = std::vector<std::uint32_t>;
-
-		auto bu16 = [] (v16 const& values)
-		{
-			auto result = rsa::math::big_uint_16();
-
-			for (auto v = values.rbegin(); v != values.rend(); ++v)
-				result = (result << 16u) | *v;
-
-			rsa::math::ops::utils::trim(result);
-			return result;
-		};
-
-		auto bu32 = [] (v32 const& values)
-		{
-			auto result = rsa::math::big_uint_32();
-
-			for (auto v = values.rbegin(); v != values.rend(); ++v)
-				result = (result << 32u) | *v;
-
-			rsa::math::ops::utils::trim(result);
-			return result;
-		};
-
 		// division by zero
 		{
 			auto q = rsa::math::big_uint_16(); auto r = rsa::math::big_uint_16();
-			EXPECT_THROW((rsa::math::ops::div_test<std::uint16_t, std::uint32_t>(q, r, bu16({ 3u }), bu16({ 0u }))), std::invalid_argument);
+			EXPECT_THROW((rsa::math::ops::div_test<std::uint16_t, std::uint32_t>(q, r, { 3u }, { 0u })), std::invalid_argument);
 		}
 
 		// TODO: other early discard cases
 
-		auto run_test16 = [&] (v16 const& dividend, v16 const& divisor, v16 const& expect_quotient, v16 const& expect_remainder)
+		auto run_test16 = [&] (rsa::math::big_uint_16 const& dividend, rsa::math::big_uint_16 const& divisor, rsa::math::big_uint_16 const& expect_quotient, rsa::math::big_uint_16 const& expect_remainder)
 		{
 			auto q = rsa::math::big_uint_16(); auto r = rsa::math::big_uint_16();
-			rsa::math::ops::div_test<std::uint16_t, std::uint32_t>(q, r, bu16(dividend), bu16(divisor));
-			return (q == bu16(expect_quotient) && r == bu16(expect_remainder));
+			rsa::math::ops::div_test<std::uint16_t, std::uint32_t>(q, r, dividend, divisor);
+			return (q == expect_quotient && r == expect_remainder);
 		};
 
-		auto run_test32 = [&] (v32 const& dividend, v32 const& divisor, v32 const& expect_quotient, v32 const& expect_remainder)
+		auto run_test32 = [&] (rsa::math::big_uint_32 const& dividend, rsa::math::big_uint_32 const& divisor, rsa::math::big_uint_32 const& expect_quotient, rsa::math::big_uint_32 const& expect_remainder)
 		{
 			auto q = rsa::math::big_uint_32(); auto r = rsa::math::big_uint_32();
-			rsa::math::ops::div_test<std::uint32_t, std::uint64_t>(q, r, bu32(dividend), bu32(divisor));
-			return (q == bu32(expect_quotient) && r == bu32(expect_remainder));
+			rsa::math::ops::div_test<std::uint32_t, std::uint64_t>(q, r, dividend, divisor);
+			return (q == expect_quotient && r == expect_remainder);
 		};
 
 		{
 			// test cases from hacker's delight 16 bit divmnu
-			auto test_cases = std::vector<std::vector<v16>>
+			auto test_cases = std::vector<std::vector<rsa::math::big_uint_16>>
 			{
 				{ { 7 }, { 1, 3 }, { 0 }, { 7, 0 } }, // n > m
 				{ { 0, 0 }, { 1, 0 }, { 0 }, { 0 } },
@@ -1075,7 +1049,7 @@ namespace test
 
 		{
 			// test cases from hacker's delight 32 bit divmnu
-			auto test_cases = std::vector<std::vector<v32>>
+			auto test_cases = std::vector<std::vector<rsa::math::big_uint_32>>
 			{
 				{ { 7 }, { 1, 3 }, { 0 }, { 7, 0 } }, // n > m
 				{ { 0, 0 }, { 1, 0 }, { 0 }, { 0 } },
@@ -1118,7 +1092,7 @@ namespace test
 
 		{
 			// these exercise the multiply / subtract loop (t must be signed for bit shift)
-			auto test_cases = std::vector<std::vector<v16>>
+			auto test_cases = std::vector<std::vector<rsa::math::big_uint_16>>
 			{
 				{ { 0x1dc4, 0xe64a, }, { 0xb64f, 1, }, { 0x8680, }, { 0x9c44, 1, }, },
 				{ { 0xbd80, 0x517c, 0x7db3, 0xdb5, }, { 0xaea7, 0x8f1c, }, { 0xce79, 0x1885, }, { 0xce91, 0x33a0, }, },
@@ -1132,7 +1106,7 @@ namespace test
 
 		{
 			// these exercise the add-back step 
-			auto test_cases = std::vector<std::vector<v32>>
+			auto test_cases = std::vector<std::vector<rsa::math::big_uint_32>>
 			{
 				{ { 0x9b438190, 0xb73eb4c5, 0x85acfde2, 0xc3f79291, }, { 0x8974b469, 0xa9c0e07d, 1, }, { 0x22cf1ee8, 0x75d51bf4, }, { 0x8974b468, 0xa9c0e07d, 1, }, },
 				{ { 0xe7581f03, 0x1740184e, 0xf67110ab, 0xcc60b2af, }, { 0xe71ce053, 0xcf5d0b26, 1, }, { 0x3b71146b, 0x70ea3f67, }, { 0xe71ce052, 0xcf5d0b26, 1, }, },
