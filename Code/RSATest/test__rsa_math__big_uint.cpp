@@ -939,22 +939,139 @@ namespace test
 
 #pragma endregion
 
-	TEST(Test_RSA, math_big_uint_newdiv_broken)
+	TEST(Test_RSA, math_big_uint_divmod)
 	{
+
+		using v16 = std::vector<std::uint16_t>;
+		using v32 = std::vector<std::uint32_t>;
+
+		auto bu16 = [] (v16 const& values)
 		{
-			using v16 = std::vector<std::uint16_t>;
+			auto result = rsa::math::big_uint_16();
 
-			auto bu16 = [] (v16 const& values)
+			for (auto v = values.rbegin(); v != values.rend(); ++v)
+				result = (result << 16u) | *v;
+
+			rsa::math::ops::utils::trim(result);
+			return result;
+		};
+
+		auto bu32 = [] (v32 const& values)
+		{
+			auto result = rsa::math::big_uint_32();
+
+			for (auto v = values.rbegin(); v != values.rend(); ++v)
+				result = (result << 32u) | *v;
+
+			rsa::math::ops::utils::trim(result);
+			return result;
+		};
+
+		// division by zero
+		{
+			auto q = rsa::math::big_uint_16(); auto r = rsa::math::big_uint_16();
+			EXPECT_THROW((rsa::math::ops::div_test<std::uint16_t, std::uint32_t>(q, r, bu16({ 3u }), bu16({ 0u }))), std::invalid_argument);
+		}
+
+		// TODO: other early discard cases
+
+		auto run_test16 = [&] (v16 const& dividend, v16 const& divisor, v16 const& expect_quotient, v16 const& expect_remainder)
+		{
+			auto q = rsa::math::big_uint_16(); auto r = rsa::math::big_uint_16();
+			rsa::math::ops::div_test<std::uint16_t, std::uint32_t>(q, r, bu16(dividend), bu16(divisor));
+			return (q == bu16(expect_quotient) && r == bu16(expect_remainder));
+		};
+
+		auto run_test32 = [&] (v32 const& dividend, v32 const& divisor, v32 const& expect_quotient, v32 const& expect_remainder)
+		{
+			auto q = rsa::math::big_uint_32(); auto r = rsa::math::big_uint_32();
+			rsa::math::ops::div_test<std::uint32_t, std::uint64_t>(q, r, bu32(dividend), bu32(divisor));
+			return (q == bu32(expect_quotient) && r == bu32(expect_remainder));
+		};
+
+		{
+			// test cases from hacker's delight 16 bit divmnu
+			auto test_cases = std::vector<std::vector<v16>>
 			{
-				auto result = rsa::math::big_uint_16();
-
-				for (auto v = values.rbegin(); v != values.rend(); ++v)
-					result = (result << 16u) | *v;
-
-				rsa::math::ops::utils::trim(result);
-				return result;
+				{ { 7 }, { 1, 3 }, { 0 }, { 7, 0 } }, // n > m
+				{ { 0, 0 }, { 1, 0 }, { 0 }, { 0 } },
+				{ { 3 }, { 2 }, { 1 }, { 1 } },
+				{ { 3 }, { 3 }, { 1 }, { 0 } },
+				{ { 3 }, { 4 }, { 0 }, { 3 } },
+				{ { 0 }, { 0xffff }, { 0 }, { 0 } },
+				{ { 0xffff }, { 1 }, { 0xffff }, { 0 } },
+				{ { 0xffff }, { 0xffff }, { 1 }, { 0 } },
+				{ { 0xffff }, { 3 }, { 0x5555 }, { 0 } },
+				{ { 0xffff, 0xffff }, { 1 }, { 0xffff, 0xffff }, { 0 } },
+				{ { 0xffff, 0xffff }, { 0xffff }, { 1, 1 }, { 0 } },
+				{ { 0xffff, 0xfffe }, { 0xffff }, { 0xffff, 0 }, { 0xfffe } },
+				{ { 0x5678, 0x1234 }, { 0x9abc }, { 0x1e1e, 0 }, { 0x2c70 } },
+				{ { 0, 0 }, { 0, 1 }, { 0 }, { 0 } },
+				{ { 0, 7 }, { 0, 3 }, { 2 }, { 0, 1 } },
+				{ { 5, 7 }, { 0, 3 }, { 2 }, { 5, 1 } },
+				{ { 0, 6 }, { 0, 2 }, { 3 }, { 0 } },
+				{ { 0x0001, 0x8000 }, { 0x7000, 0x4000 }, { 1 }, { 0x9001, 0x3fff } },
+				{ { 0x789a, 0xbcde }, { 0x789a, 0xbcde }, { 1 }, { 0 } },
+				{ { 0x789b, 0xbcde }, { 0x789a, 0xbcde }, { 1 }, { 1, 0 } },
+				{ { 0x7899, 0xbcde }, { 0x789a, 0xbcde }, { 0 }, { 0x7899, 0xbcde } },
+				{ { 0xffff, 0xffff }, { 0xffff, 0xffff }, { 1 }, { 0 } },
+				{ { 0xffff, 0xffff }, { 0x0000, 0x0001 }, { 0xffff }, { 0xffff, 0x0000 } },
+				{ { 0x89ab, 0x4567, 0x0123 }, { 0x0000, 0x0001 }, { 0x4567, 0x0123 }, { 0x89ab, 0x0000 } },
+				{ { 0x0000, 0xfffe, 0x8000 }, { 0xffff, 0x8000 }, { 0xffff, 0x0000 }, { 0xffff, 0x7fff } }, // qhat = b + 1
+				{ { 0x0003, 0x0000, 0x8000 }, { 0x0001, 0x0000, 0x2000 }, { 0x0003 }, { 0, 0, 0x2000 } }, // requires add back step
+				{ { 0, 0, 0x8000, 0x7fff }, { 1, 0, 0x8000 }, { 0xfffe, 0 }, { 2, 0xffff, 0x7fff } }, // requires add back step
+				{ { 0, 0xfffe, 0, 0x8000 }, { 0xffff, 0, 0x8000 }, { 0xffff, 0 }, { 0xffff, 0xffff, 0x7fff } }, // mult-sub quantity can't be treated as signed (?)
 			};
 
+			for (auto const& t : test_cases)
+				EXPECT_TRUE(run_test16(t[0], t[1], t[2], t[3]));
+		}
+
+		{
+			// test cases from hacker's delight 32 bit divmnu
+			auto test_cases = std::vector<std::vector<v32>>
+			{
+				{ { 7 }, { 1, 3 }, { 0 }, { 7, 0 } }, // n > m
+				{ { 0, 0 }, { 1, 0 }, { 0 }, { 0 } },
+				{ { 3 }, { 2 }, { 1 }, { 1 } },
+				{ { 3 }, { 3 }, { 1 }, { 0 } },
+				{ { 3 }, { 4 }, { 0 }, { 3 } },
+				{ { 0 }, { 0xffffffff }, { 0 }, { 0 } },
+				{ { 0xffffffff }, { 1 }, { 0xffffffff }, { 0 } },
+				{ { 0xffffffff }, { 0xffffffff }, { 1 }, { 0 } },
+				{ { 0xffffffff }, { 3 }, { 0x55555555 }, { 0 } },
+				{ { 0xffffffff, 0xffffffff }, { 1 }, { 0xffffffff, 0xffffffff }, { 0 } },
+				{ { 0xffffffff, 0xffffffff }, { 0xffffffff }, { 1, 1 }, { 0 } },
+				{ { 0xffffffff, 0xfffffffe }, { 0xffffffff }, { 0xffffffff, 0 }, { 0xfffffffe } },
+				{ { 0x5678, 0x1234 }, { 0x9abc }, { 0x1e1dba76, 0 }, { 0x6bd0 } },
+				{ { 0, 0 }, { 0, 1 }, { 0 }, { 0 } },
+				{ { 0, 7 }, { 0, 3 }, { 2 }, { 0, 1 } },
+				{ { 5, 7 }, { 0, 3 }, { 2 }, { 5, 1 } },
+				{ { 0, 6 }, { 0, 2 }, { 3 }, { 0 } },
+				{ { 0x80000000 }, { 0x40000001 }, { 1 }, { 0x3fffffff } },
+				{ { 0, 0x80000000 }, { 0x40000001 }, { 0xfffffff8, 1 }, { 8 } },
+				{ { 0, 0x80000000 }, { 1, 0x40000000 }, { 1 }, { 0xffffffff, 0x3fffffff } },
+				{ { 0x789a, 0xbcde }, { 0x789a, 0xbcde }, { 1 }, { 0 } },
+				{ { 0x789b, 0xbcde }, { 0x789a, 0xbcde }, { 1 }, { 1, 0 } },
+				{ { 0x7899, 0xbcde }, { 0x789a, 0xbcde }, { 0 }, { 0x7899, 0xbcde } },
+				{ { 0xffff, 0xffff }, { 0xffff, 0xffff }, { 1 }, { 0 } },
+				{ { 0xffff, 0xffff }, { 0x0000, 0x0001 }, { 0xffff }, { 0xffff, 0x0000 } },
+				{ { 0x89ab, 0x4567, 0x0123 }, { 0x0000, 0x0001 }, { 0x4567, 0x0123 }, { 0x89ab, 0 } },
+				{ { 0x0000, 0xfffe, 0x8000 }, { 0xffff, 0x8000 }, { 0xffffffff, 0x0000 }, { 0xffff, 0x7fff } }, // qhat = b + 1
+				{ { 0x00000003, 0x0000, 0x80000000 }, { 0x00000001, 0x0000, 0x20000000 }, { 0x0003 }, { 0, 0, 0x20000000 } }, // requires add back step
+				{ { 0x00000003, 0x0000, 0x00008000 }, { 0x00000001, 0x0000, 0x00002000 }, { 0x0003 }, { 0, 0, 0x00002000 } }, // requires add back step
+				{ { 0, 0, 0x8000, 0x7fff }, { 1, 0, 0x8000 }, { 0xfffe0000, 0 }, { 0x00020000, 0xffffffff, 0x7fff } }, // requires add back step
+				{ { 0, 0xfffe, 0, 0x8000 }, { 0xffff, 0, 0x8000 }, { 0xffffffff, 0 }, { 0xffff, 0xffffffff, 0x7fff } }, // mult-sub quantity can't be treated as signed (?)
+				{ { 0, 0xfffffffe, 0, 0x80000000 }, { 0xffff, 0, 0x80000000 }, { 0, 1 }, { 0, 0xfffeffff, 0 } }, // mult-sub quantity can't be treated as signed (?)
+				{ { 0, 0xfffffffe, 0, 0x80000000 }, { 0xffffffff, 0, 0x80000000 }, { 0xffffffff, 0 }, { 0xffffffff, 0xffffffff, 0x7fffffff } }, // mult-sub quantity can't be treated as signed (?)
+			};
+
+			for (auto const& t : test_cases)
+				EXPECT_TRUE(run_test32(t[0], t[1], t[2], t[3]));
+		}
+
+		{
+			// these exercise the multiply / subtract loop (t must be signed for bit shift)
 			auto test_cases = std::vector<std::vector<v16>>
 			{
 				{ { 0x1dc4, 0xe64a, }, { 0xb64f, 1, }, { 0x8680, }, { 0x9c44, 1, }, },
@@ -964,38 +1081,11 @@ namespace test
 			};
 
 			for (auto const& t : test_cases)
-			{
-				{
-					auto q = rsa::math::big_uint<std::uint16_t>();
-					auto r = rsa::math::big_uint<std::uint16_t>();
-					EXPECT_EQ(0, rsa::math::ops::call_divmnu(q, r, bu16({ t[0] }), bu16({ t[1] })));
-					EXPECT_EQ(t[2], q.data());
-					EXPECT_EQ(t[3], r.data());
-				}
-
-				{
-					auto q = rsa::math::big_uint<std::uint16_t>();
-					auto r = rsa::math::big_uint<std::uint16_t>();
-					rsa::math::ops::div_test<std::uint16_t, std::uint32_t>(q, r, bu16({ t[0] }), bu16({ t[1] }));
-					EXPECT_EQ(t[2], q.data());
-					EXPECT_EQ(t[3], r.data());
-				}
-			}
+				EXPECT_TRUE(run_test16(t[0], t[1], t[2], t[3]));
 		}
+
 		{
-			using v32 = std::vector<std::uint32_t>;
-
-			auto bu32 = [] (v32 const& values)
-			{
-				auto result = rsa::math::big_uint_32();
-
-				for (auto v = values.rbegin(); v != values.rend(); ++v)
-					result = (result << 32u) | *v;
-
-				rsa::math::ops::utils::trim(result);
-				return result;
-			};
-
+			// these exercise the add-back step 
 			auto test_cases = std::vector<std::vector<v32>>
 			{
 				{ { 0x9b438190, 0xb73eb4c5, 0x85acfde2, 0xc3f79291, }, { 0x8974b469, 0xa9c0e07d, 1, }, { 0x22cf1ee8, 0x75d51bf4, }, { 0x8974b468, 0xa9c0e07d, 1, }, },
@@ -1005,112 +1095,8 @@ namespace test
 			};
 
 			for (auto const& t : test_cases)
-			{
-				{
-					auto q = rsa::math::big_uint<std::uint32_t>();
-					auto r = rsa::math::big_uint<std::uint32_t>();
-					EXPECT_EQ(0, rsa::math::ops::call_divmnu(q, r, bu32({ t[0] }), bu32({ t[1] })));
-					EXPECT_EQ(t[2], q.data());
-					EXPECT_EQ(t[3], r.data());
-				}
-
-				{
-					auto q = rsa::math::big_uint<std::uint32_t>();
-					auto r = rsa::math::big_uint<std::uint32_t>();
-					rsa::math::ops::div_test<std::uint32_t, std::uint64_t>(q, r, bu32({ t[0] }), bu32({ t[1] }));
-					EXPECT_EQ(t[2], q.data());
-					EXPECT_EQ(t[3], r.data());
-				}
-			}
+				EXPECT_TRUE(run_test32(t[0], t[1], t[2], t[3]));
 		}
 	}
-
-	//TEST(Test_RSA, math_big_uint__newdiv)
-	//{
-	//	//{
-	//	//	auto a = rsa::math::big_uint_32(23487u);
-	//	//	auto b = rsa::math::big_uint_32(9847u);
-	//	//	EXPECT_EQ(a / b, 23487u / 9847u);
-	//	//}
-	//	//{
-	//	//	auto an = std::uint64_t{ 52 } << rsa::math::meta::digits<std::uint32_t>();
-	//	//	auto a = rsa::math::big_uint_32(an);
-	//	//	auto b = rsa::math::big_uint_32(9847u);
-	//	//	EXPECT_EQ(a / b, an / 9847u);
-	//	//}
-	//	//{
-	//	//	auto a = ((((rsa::math::big_uint_32(53u) << 32u) | 84739u) << 32u) | 256u);
-	//	//	auto b = rsa::math::big_uint_32(9847u);
-	//	//	auto q = (rsa::math::big_uint_32(23117025u) << 32u) + 2726935669u;
-	//	//	EXPECT_EQ(a / b, q);
-	//	//}
-
-	//	using v16 = std::vector<std::uint16_t>;
-
-	//	auto const zero = rsa::math::big_uint_16();
-
-	//	auto bu16 = [] (v16 const& values)
-	//	{
-	//		auto result = rsa::math::big_uint_16();
-
-	//		for (auto v = values.rbegin(); v != values.rend(); ++v)
-	//			result = (result << 16u) | *v;
-
-	//		rsa::math::ops::utils::trim(result);
-
-	//		return result;
-	//	};
-
-	//	auto run_test = [&] (v16 const& dividend, v16 const& divisor, v16 const& expect_quotient, v16 const& expect_remainder)
-	//	{
-	//		auto q = zero; auto r = zero;
-	//		rsa::math::ops::div_test<std::uint16_t, std::uint32_t>(q, r, bu16(dividend), bu16(divisor));
-	//		return (q == bu16(expect_quotient) && r == bu16(expect_remainder));
-	//	};
-
-	//	// copied from hacker's delight testing for divmnu
-	//	auto test_cases = std::vector<std::vector<v16>>
-	//	{
-	//		{ { 7 }, { 1, 3 }, { 0 }, { 7, 0 } },
-	//		{ { 0, 0 }, { 1, 0 }, { 0 }, { 0 } },
-	//		{ { 3 }, { 2 }, { 1 }, { 1 } },
-	//		{ { 3 }, { 3 }, { 1 }, { 0 } },
-	//		{ { 3 }, { 4 }, { 0 }, { 3 } },
-	//		{ { 0 }, { 0xffff }, { 0 }, { 0 } },
-	//		{ { 0xffff }, { 1 }, { 0xffff }, { 0 } },
-	//		{ { 0xffff }, { 0xffff }, { 1 }, { 0 } },
-	//		{ { 0xffff }, { 3 }, { 0x5555 }, { 0 } },
-	//		{ { 0xffff, 0xffff }, { 1 }, { 0xffff, 0xffff }, { 0 } },
-	//		{ { 0xffff, 0xffff }, { 0xffff }, { 1, 1 }, { 0 } },
-	//		{ { 0xffff, 0xfffe }, { 0xffff }, { 0xffff, 0 }, { 0xfffe } },
-	//		{ { 0x5678, 0x1234 }, { 0x9abc }, { 0x1e1e, 0 }, { 0x2c70 } },
-	//		{ { 0, 0 }, { 0, 1 }, { 0 }, { 0 } },
-	//		{ { 0, 7 }, { 0, 3 }, { 2 }, { 0, 1 } },
-	//		{ { 5, 7 }, { 0, 3 }, { 2 }, { 5, 1 } },
-	//		{ { 0, 6 }, { 0, 2 }, { 3 }, { 0 } },
-	//		{ { 0x0001, 0x8000 }, { 0x7000, 0x4000 }, { 1 }, { 0x9001, 0x3fff } },
-	//		{ { 0x789a, 0xbcde }, { 0x789a, 0xbcde }, { 1 }, { 0 } },
-	//		{ { 0x789b, 0xbcde }, { 0x789a, 0xbcde }, { 1 }, { 1, 0 } },
-	//		{ { 0x7899, 0xbcde }, { 0x789a, 0xbcde }, { 0 }, { 0x7899, 0xbcde } },
-	//		{ { 0xffff, 0xffff }, { 0xffff, 0xffff }, { 1 }, { 0 } },
-	//		{ { 0xffff, 0xffff }, { 0x0000, 0x0001 }, { 0xffff }, { 0xffff, 0x0000 } },
-	//		{ { 0x89ab, 0x4567, 0x0123 }, { 0x0000, 0x0001 }, { 0x4567, 0x0123 }, { 0x89ab, 0x0000 } },
-	//		{ { 0x0000, 0xfffe, 0x8000 }, { 0xffff, 0x8000 }, { 0xffff, 0x0000 }, { 0xffff, 0x7fff } }, // qhat = b + 1
-	//		{ { 0x0003, 0x0000, 0x8000 }, { 0x0001, 0x0000, 0x2000 }, { 0x0003 }, { 0, 0, 0x2000 } }, // requires add back step
-	//		{ { 0, 0, 0x8000, 0x7fff }, { 1, 0, 0x8000 }, { 0xfffe, 0 }, { 2, 0xffff, 0x7fff } }, // requires add back step
-	//		{ { 0, 0xfffe, 0, 0x8000 }, { 0xffff, 0, 0x8000 }, { 0xffff, 0 }, { 0xffff, 0xffff, 0x7fff } }, // mult-sub quantity can't be treated as signed (?)
-	//	};
-
-	//	for (auto const& t : test_cases)
-	//		EXPECT_TRUE(run_test(t[0], t[1], t[2], t[3]));
-
-	//	// division by zero
-	//	{
-	//		auto q = zero; auto r = zero;
-	//		EXPECT_THROW((rsa::math::ops::div_test<std::uint16_t, std::uint32_t>(q, r, bu16({ 3u }), bu16({ 0u }))), std::invalid_argument);
-	//	}
-
-	//	// TODO: lhs(9b438190 b73eb4c5 85acfde2 c3f79291), rhs(8974b469 a9c0e07d 1) -> (8974b468 a9c0e07d 1)
-	//}
 
 } // test
