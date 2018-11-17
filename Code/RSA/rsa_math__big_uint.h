@@ -31,6 +31,7 @@ namespace rsa
 
 			using block_type = block_t;
 			using data_type = std::vector<block_type>;
+			using block_index_type = std::size_t;
 			using bit_index_type = std::size_t;
 
 #pragma region constructors
@@ -39,6 +40,13 @@ namespace rsa
 
 			template<class uint_t>
 			explicit big_uint(uint_t n);
+
+			big_uint(std::initializer_list<block_type> block_values);
+
+			explicit big_uint(block_index_type block_count, block_type block_value);
+
+			template<class inputit_t>
+			explicit big_uint(inputit_t first, inputit_t last);
 
 			big_uint(big_uint const&) = default;
 			big_uint(big_uint&&) = default;
@@ -144,15 +152,15 @@ namespace rsa
 #pragma region members - construct
 
 		template<class block_t>
-		big_uint<block_t>::big_uint():
-			big_uint(0u)
+		big_uint<block_t>::big_uint()
 		{
 
 		}
 
 		template<class block_t>
 		template<class uint_t>
-		big_uint<block_t>::big_uint(uint_t n)
+		big_uint<block_t>::big_uint(uint_t n):
+			big_uint()
 		{
 			static_assert(meta::is_uint_v<uint_t>, "`uint_t` must be an unsigned integer.");
 
@@ -169,6 +177,28 @@ namespace rsa
 				else
 					n = uint_t{ 0 };
 			}
+		}
+
+		template<class block_t>
+		big_uint<block_t>::big_uint(std::initializer_list<block_type> block_values):
+			m_data(block_values)
+		{
+			ops::utils::trim(*this);
+		}
+
+		template<class block_t>
+		big_uint<block_t>::big_uint(block_index_type block_count, block_type block_value):
+			m_data(block_count, block_value)
+		{
+			ops::utils::trim(*this);
+		}
+
+		template<class block_t>
+		template<class inputit_t>
+		big_uint<block_t>::big_uint(inputit_t first, inputit_t last):
+			m_data(first, last)
+		{
+			ops::utils::trim(*this);
 		}
 
 #pragma endregion

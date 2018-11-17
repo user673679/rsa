@@ -12,7 +12,7 @@ int main(int argc, char** argv)
 
 
 // TODO (now):
-	
+
 	// tidy tests.
 	// rename / move div_test, replace old div_assign / mod_assign code.
 	
@@ -21,9 +21,6 @@ int main(int argc, char** argv)
 	
 	// string constructor and to_string() (binary, hex, decimal formats)
 	// add more tests with 64 bit ints (will break accidental u32 stuff).
-	
-	// constructor from iterators of block_type
-	// constructor from initializer list of block type
 
 // TODO (sometime):
 	// construct from biguints with other block sizes

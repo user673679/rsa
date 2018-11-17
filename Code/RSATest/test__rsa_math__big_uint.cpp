@@ -13,7 +13,7 @@ namespace test
 
 #pragma region constructors
 
-	TEST(Test_RSA, math_big_uint_default_constructor__IsZero)
+	TEST(Test_RSA, math_big_uint_constructor_default)
 	{
 		{
 			auto n = rsa::math::big_uint_32();
@@ -23,7 +23,7 @@ namespace test
 		}
 	}
 
-	TEST(Test_RSA, math_big_uint_numeric_constructor)
+	TEST(Test_RSA, math_big_uint_constructor_numeric)
 	{
 		{
 			auto a = rsa::math::big_uint_32(std::uint16_t{ 37 });
@@ -38,7 +38,7 @@ namespace test
 		}
 	}
 
-	TEST(Test_RSA, math_big_uint_numeric_constructor__BitPattern)
+	TEST(Test_RSA, math_big_uint_constructor_numeric__BitPattern)
 	{
 		{
 			auto n = rsa::math::big_uint_32(1u);
@@ -72,6 +72,52 @@ namespace test
 			EXPECT_TRUE(n.data().size() == 8);
 			for (auto i = std::size_t{ 0 }; i != 8; ++i)
 				EXPECT_EQ(n.data()[i], utils::uint8_max);
+		}
+	}
+
+	TEST(Test_RSA, math_big_uint_constructor_initializer_list)
+	{
+		{
+			auto n = rsa::math::big_uint_16({ });
+			EXPECT_TRUE(n.is_zero());
+		}
+		{
+			auto n = rsa::math::big_uint_8({ 0, 1, 2 });
+			EXPECT_EQ(n.data()[0], 0u);
+			EXPECT_EQ(n.data()[1], 1u);
+			EXPECT_EQ(n.data()[2], 2u);
+			EXPECT_EQ(n, 0x020100u);
+		}
+	}
+
+	TEST(Test_RSA, math_big_uint_constructor_count_value)
+	{
+		{
+			auto n = rsa::math::big_uint_16(0, std::uint16_t{ 0 });
+			EXPECT_TRUE(n.is_zero());
+		}
+		{
+			auto n = rsa::math::big_uint_8(2, std::uint8_t{ 2 });
+			EXPECT_EQ(n.data()[0], 2u);
+			EXPECT_EQ(n.data()[1], 2u);
+			EXPECT_EQ(n, 0x0202u);
+		}
+	}
+
+	TEST(Test_RSA, math_big_uint_constructor_iterators)
+	{
+		{
+			auto v = std::vector<std::uint32_t>();
+			auto n = rsa::math::big_uint_32(v.begin(), v.end());
+			EXPECT_TRUE(n.is_zero());
+		}
+		{
+			auto v = std::vector<std::uint8_t>{ 0, 1, 2 };
+			auto n = rsa::math::big_uint_8(v.begin(), v.end());
+			EXPECT_EQ(n.data()[0], 0u);
+			EXPECT_EQ(n.data()[1], 1u);
+			EXPECT_EQ(n.data()[2], 2u);
+			EXPECT_EQ(n, 0x020100u);
 		}
 	}
 
