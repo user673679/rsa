@@ -23,4 +23,4 @@ int main(int argc, char** argv)
 
 // TODO (sometime):
 	// construct from biguints with other block sizes
-	// fixed size version (whole separate class)
+	// fixed size version (entirely separate class)

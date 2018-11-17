@@ -11,11 +11,6 @@
 #include <type_traits>
 #include <vector>
 
-#include <iostream>
-
-int divmnu16(unsigned short q[], unsigned short r[], const unsigned short u[], const unsigned short v[], int m, int n);
-int divmnu32(unsigned q[], unsigned r[], const unsigned u[], const unsigned v[], int m, int n);
-
 namespace rsa
 {
 
@@ -885,25 +880,15 @@ namespace rsa
 			}
 
 			template<class block_t, class double_block_t>
-			inline void div_test(big_uint<block_t>& quotient, big_uint<block_t>& remainder, big_uint<block_t> const& lhs, big_uint<block_t> const& rhs)
+			inline void div_test(big_uint<block_t>& quotient, big_uint<block_t>& remainder, big_uint<block_t> dividend, big_uint<block_t> divisor)
 			{
 				quotient.data().clear();
 				remainder.data().clear();
 
-				if (rhs.is_zero())
-					throw std::invalid_argument("divisor cannot be zero.");
-
-				if (lhs < rhs) { remainder = lhs; quotient.data().clear(); return; }
-				if (lhs == rhs) { quotient.data().clear(); quotient.data().push_back(1); return; }
-
-				if (lhs.data().size() == 1u && rhs.data().size() == 1u)
-				{
-					quotient = static_cast<block_t>(lhs.data()[0] / rhs.data()[0]);
-					remainder = static_cast<block_t>(lhs.data()[0] % rhs.data()[0]);
-
-					utils::trim(remainder);
-					return;
-				}
+				rsa::utils::die_if(divisor.is_zero());
+				rsa::utils::die_if(dividend < divisor);
+				rsa::utils::die_if(dividend == divisor);
+				rsa::utils::die_if(dividend.data().size() == 1u && divisor.data().size() == 1u);
 
 				auto const get_num_leading_zeros = [] (block_t x)
 				{
@@ -927,9 +912,9 @@ namespace rsa
 				};
 
 				{
-					auto d = rhs;
+					auto& d = divisor;
 					auto& n = remainder;
-					remainder = lhs;
+					remainder = std::move(dividend);
 					auto& q = quotient;
 
 					q.data().resize(n.data().size() - d.data().size() + 1);
@@ -1033,78 +1018,6 @@ namespace rsa
 				}
 			}
 
-			template<class block_t>
-			void pvec(std::vector<block_t> const& vec)
-			{
-				std::cout << "{ ";
-				for (auto v : vec)
-					std::cout << v << ", ";
-				std::cout << "}, ";
-			}
-
-			template<class block_t>
-			int call_divmnu(big_uint<block_t>& q, big_uint<block_t>& r, big_uint<block_t>const& a, big_uint<block_t> const& b);
-
-			template<>
-			inline int call_divmnu<std::uint16_t>(big_uint_16& q, big_uint_16& r, big_uint_16 const& a, big_uint_16 const& b)
-			{
-				if (b.is_zero())
-					throw std::invalid_argument("divisor cannot be zero.");
-
-				if (a < b) { r = a; q.data().clear(); return 0; }
-				if (a == b) { q.data().clear(); q.data().push_back(1); return 0; }
-
-				if (a.data().size() == 1u && b.data().size() == 1u)
-				{
-					q = static_cast<std::uint16_t>(a.data()[0] / b.data()[0]);
-					r = static_cast<std::uint16_t>(a.data()[0] % b.data()[0]);
-
-					utils::trim(r);
-					return 0;
-				}
-
-				auto m = static_cast<int>(a.data().size());
-				auto n = static_cast<int>(b.data().size());
-				q.data().resize(std::max(m - n + 1, 1));
-				r.data().resize(n);
-
-				auto result = divmnu16(q.data().data(), r.data().data(), a.data().data(), b.data().data(), m, n);
-
-				rsa::math::ops::utils::trim(q);
-				rsa::math::ops::utils::trim(r);
-				return result;
-			}
-
-			template<>
-			inline int call_divmnu<std::uint32_t>(big_uint_32& q, big_uint_32& r, big_uint_32 const& a, big_uint_32 const& b)
-			{
-				if (b.is_zero())
-					throw std::invalid_argument("divisor cannot be zero.");
-
-				if (a < b) { r = a; q.data().clear(); return 0; }
-				if (a == b) { q.data().clear(); q.data().push_back(1); return 0; }
-
-				if (a.data().size() == 1u && b.data().size() == 1u)
-				{
-					q = static_cast<std::uint32_t>(a.data()[0] / b.data()[0]);
-					r = static_cast<std::uint32_t>(a.data()[0] % b.data()[0]);
-
-					utils::trim(r);
-					return 0;
-				}
-
-				auto m = static_cast<int>(a.data().size());
-				auto n = static_cast<int>(b.data().size());
-				q.data().resize(std::max(m - n + 1, 1));
-				r.data().resize(n);
-
-				auto result = divmnu32(q.data().data(), r.data().data(), a.data().data(), b.data().data(), m, n);
-
-				rsa::math::ops::utils::trim(q);
-				rsa::math::ops::utils::trim(r);
-				return result;
-			}
-
 			template<>
 			inline void div_assign(big_uint<std::uint32_t>& lhs, big_uint<std::uint32_t> const& rhs)
 			{
@@ -1114,27 +1027,18 @@ namespace rsa
 				if (lhs < rhs) { lhs.data().clear(); return; }
 				if (lhs == rhs) { lhs.data().clear(); lhs.data().push_back(1); return; }
 
-				//auto q1 = big_uint<std::uint32_t>();
-				//auto r1 = big_uint<std::uint32_t>();
-				//divmod(q1, r1, lhs, rhs);
+				if (lhs.data().size() == 1u && rhs.data().size() == 1u)
+				{
+					lhs = static_cast<std::uint32_t>(lhs.data()[0] / rhs.data()[0]);
+					return;
+				}
 
-				auto q2 = big_uint<std::uint32_t>();
-				auto r2 = big_uint<std::uint32_t>();
-				div_test<std::uint32_t, std::uint64_t>(q2, r2, lhs, rhs);
-
-				//if (q2 != q1 || r2 != r1)
-				//{
-				//	std::cout << std::hex;
-				//	std::cout << "div: ";
-				//	std::cout << "{ ";
-				//	pvec(lhs.data());
-				//	pvec(rhs.data());
-				//	pvec(q1.data());
-				//	pvec(r1.data());
-				//	std::cout << "},\n";
-				//}
-
-				lhs = q2;
+				{
+					auto q = big_uint<std::uint32_t>();
+					auto r = big_uint<std::uint32_t>();
+					div_test<std::uint32_t, std::uint64_t>(q, r, lhs, rhs);
+					lhs = std::move(q);
+				}
 			}
 
 			template<>
@@ -1146,31 +1050,43 @@ namespace rsa
 				if (lhs < rhs) { return; }
 				if (lhs == rhs) { lhs.data().clear(); return; }
 
-				//auto q1 = big_uint<std::uint32_t>();
-				//auto r1 = big_uint<std::uint32_t>();
-				//divmod(q1, r1, lhs, rhs);
+				if (lhs.data().size() == 1u && rhs.data().size() == 1u)
+				{
+					lhs = static_cast<std::uint32_t>(lhs.data()[0] % rhs.data()[0]);
+					utils::trim(lhs);
+					return;
+				}
 
-				//auto q2 = big_uint<std::uint32_t>();
-				//auto r2 = big_uint<std::uint32_t>();
-				//rsa::utils::die_if(call_divmnu(q2, r2, lhs, rhs) != 0);
+				{
+					auto q = big_uint<std::uint32_t>();
+					auto r = big_uint<std::uint32_t>();
+					div_test<std::uint32_t, std::uint64_t>(q, r, lhs, rhs);
+					lhs = std::move(r);
+				}
+			}
 
-				auto q2 = big_uint<std::uint32_t>();
-				auto r2 = big_uint<std::uint32_t>();
-				div_test<std::uint32_t, std::uint64_t>(q2, r2, lhs, rhs);
+			template<class block_t, class double_block_t>
+			void divmod(big_uint<block_t>& quotient, big_uint<block_t>& remainder, big_uint<block_t> const& dividend, big_uint<block_t> const& divisor)
+			{
+				quotient.data().clear();
+				remainder.data().clear();
 
-				//if (q2 != q1 || r2 != r1)
-				//{
-				//	std::cout << std::hex;
-				//	std::cout << "div: ";
-				//	std::cout << "{ ";
-				//	pvec(lhs.data());
-				//	pvec(rhs.data());
-				//	pvec(q1.data());
-				//	pvec(r1.data());
-				//	std::cout << "},\n";
-				//}
+				if (divisor.is_zero())
+					throw std::invalid_argument("divisor cannot be zero.");
 
-				lhs = r2;
+				if (dividend < divisor) { remainder = dividend; return; }
+				if (dividend == divisor) { quotient.data().push_back(1); return; }
+
+				if (dividend.data().size() == 1u && divisor.data().size() == 1u)
+				{
+					quotient = static_cast<block_t>(dividend.data()[0] / divisor.data()[0]);
+					remainder = static_cast<block_t>(dividend.data()[0] % divisor.data()[0]);
+
+					utils::trim(remainder);
+					return;
+				}
+
+				div_test<block_t, double_block_t>(quotient, remainder, dividend, divisor);
 			}
 
 		} // ops
@@ -1178,194 +1094,3 @@ namespace rsa
 	} // math
 
 } // rsa
-
-
-#include <stdio.h>
-#include <stdlib.h>     //To define "exit", req'd by XLC.
-#include <malloc.h>
-
-#pragma warning(push)
-#pragma warning(disable: 4244 4554)
-
-inline int nlz(unsigned x) {
-	int n;
-
-	if (x == 0) return(32);
-	n = 0;
-	if (x <= 0x0000FFFF) { n = n + 16; x = x << 16; }
-	if (x <= 0x00FFFFFF) { n = n + 8; x = x << 8; }
-	if (x <= 0x0FFFFFFF) { n = n + 4; x = x << 4; }
-	if (x <= 0x3FFFFFFF) { n = n + 2; x = x << 2; }
-	if (x <= 0x7FFFFFFF) { n = n + 1; }
-	return n;
-}
-
-inline int divmnu16(unsigned short q[], unsigned short r[], const unsigned short u[], const unsigned short v[], int m, int n) {
-
-	const unsigned b = 65536; // Number base (16 bits).
-	unsigned short *un, *vn;  // Normalized form of u, v.
-	unsigned qhat;            // Estimated quotient digit.
-	unsigned rhat;            // A remainder.
-	unsigned p;               // Product of two digits.
-	int s, i, j, t, k;
-
-	if (m < n || n <= 0 || v[n - 1] == 0)
-		return 1;              // Return if invalid param.
-
-	if (n == 1) {                        // Take care of
-		k = 0;                            // the case of a
-		for (j = m - 1; j >= 0; j--) {    // single-digit
-			q[j] = (k*b + u[j]) / v[0];      // divisor here.
-			k = (k*b + u[j]) - q[j] * v[0];
-		}
-		if (r != NULL) r[0] = k;
-		return 0;
-	}
-
-	// Normalize by shifting v left just enough so that
-	// its high-order bit is on, and shift u left the
-	// same amount.  We may have to append a high-order
-	// digit on the dividend; we do that unconditionally.
-
-	s = nlz(v[n - 1]) - 16;        // 0 <= s <= 15.
-	vn = (unsigned short *)_alloca(2 * n);
-	for (i = n - 1; i > 0; i--)
-		vn[i] = (v[i] << s) | (v[i - 1] >> 16 - s);
-	vn[0] = v[0] << s;
-
-	un = (unsigned short *)_alloca(2 * (m + 1));
-	un[m] = u[m - 1] >> 16 - s;
-	for (i = m - 1; i > 0; i--)
-		un[i] = (u[i] << s) | (u[i - 1] >> 16 - s);
-	un[0] = u[0] << s;
-
-	for (j = m - n; j >= 0; j--) {       // Main loop.
-										 // Compute estimate qhat of q[j].
-		qhat = (un[j + n] * b + un[j + n - 1]) / vn[n - 1];
-		rhat = (un[j + n] * b + un[j + n - 1]) - qhat*vn[n - 1];
-	again:
-		if (qhat >= b || qhat*vn[n - 2] > b*rhat + un[j + n - 2])
-		{
-			qhat = qhat - 1;
-			rhat = rhat + vn[n - 1];
-			if (rhat < b) goto again;
-		}
-
-		// Multiply and subtract.
-		k = 0;
-		for (i = 0; i < n; i++) {
-			p = qhat*vn[i];
-			t = un[i + j] - k - (p & 0xFFFF);
-			un[i + j] = t;
-			k = (p >> 16) - (t >> 16);
-		}
-		t = un[j + n] - k;
-		un[j + n] = t;
-
-		q[j] = qhat;              // Store quotient digit.
-		if (t < 0) {              // If we subtracted too
-			q[j] = q[j] - 1;       // much, add back.
-			k = 0;
-			for (i = 0; i < n; i++) {
-				t = un[i + j] + vn[i] + k;
-				un[i + j] = t;
-				k = t >> 16;
-			}
-			un[j + n] = un[j + n] + k;
-		}
-	} // End j.
-	  // If the caller wants the remainder, unnormalize
-	  // it and pass it back.
-	if (r != NULL) {
-		for (i = 0; i < n; i++)
-			r[i] = (un[i] >> s) | (un[i + 1] << 16 - s);
-	}
-	return 0;
-}
-
-
-inline int divmnu32(unsigned q[], unsigned r[], const unsigned u[], const unsigned v[], int m, int n) {
-
-	const unsigned long long b = 4294967296LL; // Number base (2**32).
-	unsigned *un, *vn;                         // Normalized form of u, v.
-	unsigned long long qhat;                   // Estimated quotient digit.
-	unsigned long long rhat;                   // A remainder.
-	unsigned long long p;                      // Product of two digits.
-	long long t, k;
-	int s, i, j;
-
-	if (m < n || n <= 0 || v[n - 1] == 0)
-		return 1;                         // Return if invalid param.
-
-	if (n == 1) {                        // Take care of
-		k = 0;                            // the case of a
-		for (j = m - 1; j >= 0; j--) {    // single-digit
-			q[j] = (k*b + u[j]) / v[0];      // divisor here.
-			k = (k*b + u[j]) - q[j] * v[0];
-		}
-		if (r != NULL) r[0] = k;
-		return 0;
-	}
-
-	/* Normalize by shifting v left just enough so that its high-order
-	bit is on, and shift u left the same amount. We may have to append a
-	high-order digit on the dividend; we do that unconditionally. */
-
-	s = nlz(v[n - 1]);             // 0 <= s <= 31.
-	vn = (unsigned *)_alloca(4 * n);
-	for (i = n - 1; i > 0; i--)
-		vn[i] = (v[i] << s) | ((unsigned long long)v[i - 1] >> (32 - s));
-	vn[0] = v[0] << s;
-
-	un = (unsigned *)_alloca(4 * (m + 1));
-	un[m] = (unsigned long long)u[m - 1] >> (32 - s);
-	for (i = m - 1; i > 0; i--)
-		un[i] = (u[i] << s) | ((unsigned long long)u[i - 1] >> (32 - s));
-	un[0] = u[0] << s;
-
-	for (j = m - n; j >= 0; j--) {       // Main loop.
-										 // Compute estimate qhat of q[j].
-		qhat = (un[j + n] * b + un[j + n - 1]) / vn[n - 1];
-		rhat = (un[j + n] * b + un[j + n - 1]) - qhat*vn[n - 1];
-	again:
-		if (qhat >= b || qhat*vn[n - 2] > b*rhat + un[j + n - 2])
-		{
-			qhat = qhat - 1;
-			rhat = rhat + vn[n - 1];
-			if (rhat < b) goto again;
-		}
-
-		// Multiply and subtract.
-		k = 0;
-		for (i = 0; i < n; i++) {
-			p = qhat*vn[i];
-			t = un[i + j] - k - (p & 0xFFFFFFFFLL);
-			un[i + j] = t;
-			k = (p >> 32) - (t >> 32);
-		}
-		t = un[j + n] - k;
-		un[j + n] = t;
-
-		q[j] = qhat;              // Store quotient digit.
-		if (t < 0) {              // If we subtracted too
-			q[j] = q[j] - 1;       // much, add back.
-			k = 0;
-			for (i = 0; i < n; i++) {
-				t = (unsigned long long)un[i + j] + vn[i] + k;
-				un[i + j] = t;
-				k = t >> 32;
-			}
-			un[j + n] = un[j + n] + k;
-		}
-	} // End j.
-	  // If the caller wants the remainder, unnormalize
-	  // it and pass it back.
-	if (r != NULL) {
-		for (i = 0; i < n - 1; i++)
-			r[i] = (un[i] >> s) | ((unsigned long long)un[i + 1] << (32 - s));
-		r[n - 1] = un[n - 1] >> s;
-	}
-	return 0;
-}
-
-#pragma warning(pop)
