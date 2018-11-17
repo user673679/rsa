@@ -255,15 +255,15 @@ namespace test
 	TEST(Test_RSA, math_big_uint_get_most_significant_bit)
 	{
 		{
-			auto n = rsa::math::big_uint_64(0u);
+			auto n = rsa::math::big_uint_32(0u);
 			EXPECT_THROW(n.get_most_significant_bit(), std::logic_error);
 		}
 		{
-			auto n = rsa::math::big_uint_64(1u);
+			auto n = rsa::math::big_uint_32(1u);
 			EXPECT_EQ(n.get_most_significant_bit(), 0u);
 		}
 		{
-			auto n = rsa::math::big_uint_64(21u);
+			auto n = rsa::math::big_uint_32(21u);
 			EXPECT_EQ(n.get_most_significant_bit(), 4u);
 		}
 	}
@@ -733,8 +733,8 @@ namespace test
 		EXPECT_TRUE((rsa::math::big_uint_8(utils::uint32_max) /= rsa::math::big_uint_8(std::uint64_t{ utils::uint32_max } +1u)).is_zero());
 
 		{
-			auto a = rsa::math::big_uint_64(8u);
-			auto b = rsa::math::big_uint_64(2u);
+			auto a = rsa::math::big_uint_32(8u);
+			auto b = rsa::math::big_uint_32(2u);
 			EXPECT_EQ(a /= b, 4u);
 		}
 		{
@@ -798,8 +798,8 @@ namespace test
 		EXPECT_EQ(rsa::math::big_uint_8(utils::uint32_max) %= rsa::math::big_uint_8(std::uint64_t{ utils::uint32_max } + 1u), utils::uint32_max);
 
 		{
-			auto a = rsa::math::big_uint_64(8u);
-			auto b = rsa::math::big_uint_64(2u);
+			auto a = rsa::math::big_uint_32(8u);
+			auto b = rsa::math::big_uint_32(2u);
 			EXPECT_EQ(a %= b, 0u);
 		}
 		{

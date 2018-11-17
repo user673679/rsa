@@ -18,16 +18,35 @@ namespace rsa
 	{
 
 		template<class block_t>
+		struct block_traits;
+
+		template<>
+		struct block_traits<std::uint8_t> { using double_block_type = std::uint16_t; };
+
+		template<>
+		struct block_traits<std::uint16_t> { using double_block_type = std::uint32_t; };
+
+		template<>
+		struct block_traits<std::uint32_t> { using double_block_type = std::uint64_t; };
+
+		template<class block_t>
+		using double_block_t = typename block_traits<block_t>::double_block_type;
+
+
+		template<class block_t>
 		class big_uint
 		{
 		public:
 
-			static_assert(meta::is_uint_v<block_t>, "`uint_t` must be an unsigned integer.");
-
 			using block_type = block_t;
+			using double_block_type = double_block_t<block_type>;
 			using data_type = std::vector<block_type>;
 			using block_index_type = std::size_t;
 			using bit_index_type = std::size_t;
+
+			static_assert(meta::is_uint_v<block_type>, "`block_type` must be an unsigned integer.");
+			static_assert(meta::is_uint_v<double_block_type>, "`double_block_type` must be an unsigned integer.");
+			static_assert(meta::digits<double_block_type>() == 2 * meta::digits<block_type>(), "`double_block_type` have twice as many digits as `block_type`.");
 
 #pragma region constructors
 
@@ -142,7 +161,6 @@ namespace rsa
 		using big_uint_8 = big_uint<std::uint8_t>;
 		using big_uint_16 = big_uint<std::uint16_t>;
 		using big_uint_32 = big_uint<std::uint32_t>;
-		using big_uint_64 = big_uint<std::uint64_t>;
 
 #pragma region members - construct
 

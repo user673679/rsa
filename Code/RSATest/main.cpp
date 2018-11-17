@@ -5,15 +5,15 @@ int main(int argc, char** argv)
 {
 	testing::InitGoogleTest(&argc, argv);
 
-	//testing::GTEST_FLAG(filter) = "*math_big_uint_newdiv_broken";
+	//testing::GTEST_FLAG(filter) = "*math_big_uint*";
 
 	return RUN_ALL_TESTS();
 }
 
 
 // TODO (now):
-
-	// rename / move div_test, replace old div_assign / mod_assign code.
+	
+	// rename and move div_test, replace old div_assign / mod_assign code.
 	
 	// add stuff to utils (db_t(), b_t(), demote -> high_to_low(), promote -> low_to_high(), checked_sub, get_num_leading_zeros)
 	// use the utils stuff

@@ -42,21 +42,21 @@ namespace test
 	TEST(Test_RSA, math_primes_is_prime_big_uint)
 	{
 		EXPECT_EQ(rsa::math::is_prime(rsa::math::big_uint_8(0u)), false);
-		EXPECT_EQ(rsa::math::is_prime(rsa::math::big_uint_64(1u)), true);
+		EXPECT_EQ(rsa::math::is_prime(rsa::math::big_uint_16(1u)), true);
 		EXPECT_EQ(rsa::math::is_prime(rsa::math::big_uint_32(2u)), true);
 		EXPECT_EQ(rsa::math::is_prime(rsa::math::big_uint_16(3u)), true);
 		EXPECT_EQ(rsa::math::is_prime(rsa::math::big_uint_32(4u)), false);
-		EXPECT_EQ(rsa::math::is_prime(rsa::math::big_uint_64(5u)), true);
+		EXPECT_EQ(rsa::math::is_prime(rsa::math::big_uint_16(5u)), true);
 		EXPECT_EQ(rsa::math::is_prime(rsa::math::big_uint_32(6u)), false);
 		EXPECT_EQ(rsa::math::is_prime(rsa::math::big_uint_32(7u)), true);
 		EXPECT_EQ(rsa::math::is_prime(rsa::math::big_uint_8(8u)), false);
 		EXPECT_EQ(rsa::math::is_prime(rsa::math::big_uint_32(9u)), false);
 		EXPECT_EQ(rsa::math::is_prime(rsa::math::big_uint_16(10u)), false);
 		EXPECT_EQ(rsa::math::is_prime(rsa::math::big_uint_32(11u)), true);
-		EXPECT_EQ(rsa::math::is_prime(rsa::math::big_uint_64(57047u)), true);
+		EXPECT_EQ(rsa::math::is_prime(rsa::math::big_uint_32(57047u)), true);
 		EXPECT_EQ(rsa::math::is_prime(rsa::math::big_uint_32(57059u)), true);
 		EXPECT_EQ(rsa::math::is_prime(rsa::math::big_uint_32(57061u)), false);
-		EXPECT_EQ(rsa::math::is_prime(rsa::math::big_uint_64(57073u)), true);
+		EXPECT_EQ(rsa::math::is_prime(rsa::math::big_uint_32(57073u)), true);
 		EXPECT_EQ(rsa::math::is_prime(rsa::math::big_uint_32(57079u)), false);
 	}
 
@@ -65,25 +65,25 @@ namespace test
 		auto k = 20u;
 		auto rng = std::mt19937_64();
 		EXPECT_EQ(rsa::math::is_prime_rm(rsa::math::big_uint_16(0u), rng, k), false);
-		EXPECT_EQ(rsa::math::is_prime_rm(rsa::math::big_uint_64(1u), rng, k), true);
+		EXPECT_EQ(rsa::math::is_prime_rm(rsa::math::big_uint_16(1u), rng, k), true);
 		EXPECT_EQ(rsa::math::is_prime_rm(rsa::math::big_uint_32(2u), rng, k), true);
 		EXPECT_EQ(rsa::math::is_prime_rm(rsa::math::big_uint_16(3u), rng, k), true);
 		EXPECT_EQ(rsa::math::is_prime_rm(rsa::math::big_uint_32(4u), rng, k), false);
-		EXPECT_EQ(rsa::math::is_prime_rm(rsa::math::big_uint_64(5u), rng, k), true);
+		EXPECT_EQ(rsa::math::is_prime_rm(rsa::math::big_uint_16(5u), rng, k), true);
 		EXPECT_EQ(rsa::math::is_prime_rm(rsa::math::big_uint_32(6u), rng, k), false);
 		EXPECT_EQ(rsa::math::is_prime_rm(rsa::math::big_uint_32(7u), rng, k), true);
 		EXPECT_EQ(rsa::math::is_prime_rm(rsa::math::big_uint_32(8u), rng, k), false);
 		EXPECT_EQ(rsa::math::is_prime_rm(rsa::math::big_uint_32(9u), rng, k), false);
 		EXPECT_EQ(rsa::math::is_prime_rm(rsa::math::big_uint_16(10u), rng, k), false);
 		EXPECT_EQ(rsa::math::is_prime_rm(rsa::math::big_uint_32(11u), rng, k), true);
-		EXPECT_EQ(rsa::math::is_prime_rm(rsa::math::big_uint_64(57047u), rng, k), true);
+		EXPECT_EQ(rsa::math::is_prime_rm(rsa::math::big_uint_32(57047u), rng, k), true);
 		EXPECT_EQ(rsa::math::is_prime_rm(rsa::math::big_uint_32(57059u), rng, k), true);
 		EXPECT_EQ(rsa::math::is_prime_rm(rsa::math::big_uint_32(57061u), rng, k), false);
-		EXPECT_EQ(rsa::math::is_prime_rm(rsa::math::big_uint_64(57073u), rng, k), true);
+		EXPECT_EQ(rsa::math::is_prime_rm(rsa::math::big_uint_32(57073u), rng, k), true);
 		EXPECT_EQ(rsa::math::is_prime_rm(rsa::math::big_uint_32(57079u), rng, k), false);
 
 		{
-			auto n = rsa::math::generate_random_bits<std::uint64_t>(rng, 4096u); // big number!
+			auto n = rsa::math::generate_random_bits<std::uint32_t>(rng, 4096u); // big number!
 			EXPECT_NO_THROW(rsa::math::is_prime_rm(n, rng, k));
 		}
 	}
@@ -100,9 +100,9 @@ namespace test
 	{
 		auto k = 20u;
 		auto rng = std::mt19937_64();
-		EXPECT_TRUE(rsa::math::is_prime_rm(rsa::math::generate_prime_rm<std::uint64_t>(rng, 16u, k), rng, k));
+		EXPECT_TRUE(rsa::math::is_prime_rm(rsa::math::generate_prime_rm<std::uint32_t>(rng, 16u, k), rng, k));
 		std::cout << "16" << std::endl;
-		EXPECT_TRUE(rsa::math::is_prime_rm(rsa::math::generate_prime_rm<std::uint64_t>(rng, 24u, k), rng, k));
+		EXPECT_TRUE(rsa::math::is_prime_rm(rsa::math::generate_prime_rm<std::uint32_t>(rng, 24u, k), rng, k));
 		std::cout << "24" << std::endl;
 		// too slow in debug, but ok in release:
 		//EXPECT_TRUE(rsa::math::is_prime_rm(rsa::math::generate_prime_rm<std::uint64_t>(rng, 32u, k), rng, k));
