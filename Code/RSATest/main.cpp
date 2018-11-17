@@ -12,11 +12,16 @@ int main(int argc, char** argv)
 
 
 // TODO (now):
-
+	
+	// commit
+	// add 32 bit divmnu test cases.
+	// tidy tests.
+	// rename / move div_test, replace old div_assign / mod_assign code.
+	
 	// add stuff to utils (db_t(), b_t(), demote -> high_to_low(), promote -> low_to_high(), checked_sub, get_num_leading_zeros)
 	// use the utils stuff
 	
-	// string constructor and to_string()
+	// string constructor and to_string() (binary, hex, decimal formats)
 	// add more tests with 64 bit ints (will break accidental u32 stuff).
 	
 	// constructor from initializer list of block_type

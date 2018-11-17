@@ -1006,13 +1006,13 @@ namespace test
 
 			for (auto const& t : test_cases)
 			{
-				//{
-				//	auto q = rsa::math::big_uint<std::uint32_t>();
-				//	auto r = rsa::math::big_uint<std::uint32_t>();
-				//	EXPECT_EQ(0, rsa::math::ops::call_divmnu(q, r, bu16({ t[0] }), bu16({ t[1] })));
-				//	EXPECT_EQ(t[2], q.data());
-				//	EXPECT_EQ(t[3], r.data());
-				//}
+				{
+					auto q = rsa::math::big_uint<std::uint32_t>();
+					auto r = rsa::math::big_uint<std::uint32_t>();
+					EXPECT_EQ(0, rsa::math::ops::call_divmnu(q, r, bu32({ t[0] }), bu32({ t[1] })));
+					EXPECT_EQ(t[2], q.data());
+					EXPECT_EQ(t[3], r.data());
+				}
 
 				{
 					auto q = rsa::math::big_uint<std::uint32_t>();
