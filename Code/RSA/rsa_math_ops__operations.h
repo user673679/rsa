@@ -169,173 +169,349 @@ namespace rsa
 				utils::trim(a);
 			}
 
-			//template<class block_t>
-			//void add_assign(big_uint<block_t>& a, big_uint<block_t> const& b)
-			//{
-			//	if (b.is_zero())
-			//		return;
+			template<class block_t>
+			void add_assign(big_uint<block_t>& a, big_uint<block_t> const& b)
+			{
+				using double_block_t = typename big_uint<block_t>::double_block_type;
 
-			//	if (a.is_zero())
-			//	{
-			//		a = b;
-			//		return;
-			//	}
+				if (b.is_zero())
+					return;
 
-			//	using data_type = big_uint<block_t>::data_type;
+				if (a.is_zero())
+				{
+					a = b;
+					return;
+				}
 
-			//	const auto get_block = [] (data_type const& data, std::size_t i)
-			//	{
-			//		return (i < data.size()) ? data[i] : block_t{ 0 };
-			//	};
+				auto& a_data = a.data();
+				auto const& b_data = b.data();
+				const auto min_size = std::min(a_data.size(), b_data.size());
 
-			//	const auto get_block_extend = [] (data_type& data, std::size_t i) -> block_t&
-			//	{
-			//		if (i == data.size())
-			//			data.push_back(block_t{ 0 });
+				auto carry = double_block_t{ 0 };
 
-			//		return data[i];
-			//	};
+				// both a and b have data
+				for (auto i = std::size_t{ 0 }; i != min_size; ++i)
+				{
+					carry += static_cast<double_block_t>(a_data[i]) + static_cast<double_block_t>(b_data[i]);
+					a_data[i] = static_cast<block_t>(carry);
+					carry >>= meta::digits<block_t>();
+				}
 
-			//	const auto checked_addassign = [] (block_t& a, block_t b)
-			//	{
-			//		return ((a += b) < b);
-			//	};
+				// ran out of data in a, copy over the rest of b
+				a_data.insert(a_data.end(), b_data.begin() + min_size, b_data.end());
 
-			//	auto carry = false;
-			//	const auto max_size = std::max(a.data().size(), b.data().size());
+				// add carry
+				for (auto i = min_size; i != a_data.size() && (carry != double_block_t{ 0 }); ++i)
+				{
+					carry += static_cast<double_block_t>(a_data[i]);
+					a_data[i] = static_cast<block_t>(carry);
+					carry >>= meta::digits<block_t>();
+				}
 
-			//	// add corresponding blocks. in case of overflow, carry one to the next block.
-			//	for (auto i = std::size_t{ 0 }; i != max_size; ++i)
-			//	{
-			//		auto const& b_block = get_block(b.data(), i);
-			//		auto& a_block = get_block_extend(a.data(), i);
+				// extend a if necessary
+				if (carry)
+					a_data.push_back(static_cast<block_t>(carry));
+			}
 
-			//		// use bitwise or so both sides are evaluated.
-			//		carry = (checked_addassign(a_block, b_block) | (carry ? checked_addassign(a_block, block_t{ 1 }) : false));
-			//	}
+			template<class block_t>
+			void sub_assign(big_uint<block_t>& a, big_uint<block_t> const& b)
+			{
+				using double_block_t = typename big_uint<block_t>::double_block_type;
 
-			//	if (carry)
-			//		a.data().push_back(block_t{ 1 });
-			//}
+				if (b.is_zero())
+					return;
 
-			//template<class block_t>
-			//void sub_assign(big_uint<block_t>& a, big_uint<block_t> const& b)
-			//{
-			//	if (b.is_zero())
-			//		return;
+				if (b > a)
+					throw std::invalid_argument("cannot subtract larger value from smaller one.");
 
-			//	if (b > a)
-			//		throw std::invalid_argument("cannot subtract larger value from smaller one.");
+				rsa::utils::die_if(a.data().size() < b.data().size());
 
-			//	rsa::utils::die_if(a.data().size() < b.data().size());
+				auto& a_data = a.data();
+				auto const& b_data = b.data();
 
-			//	using data_type = big_uint<block_t>::data_type;
+				auto borrow = double_block_t{ 0 };
 
-			//	const auto get_block = [] (data_type const& data, std::size_t i)
-			//	{
-			//		return (i < data.size()) ? data[i] : block_t{ 0 };
-			//	};
+				// both a and b have data
+				for (auto i = std::size_t{ 0 }; i != b_data.size(); ++i)
+				{
+					borrow = static_cast<double_block_t>(a_data[i]) - static_cast<double_block_t>(b_data[i]) - borrow;
+					a_data[i] = static_cast<block_t>(borrow);
+					borrow = (borrow >> meta::digits<block_t>()) & double_block_t { 1 };
+				}
 
-			//	const auto checked_sub = [] (block_t& out, block_t a, block_t b)
-			//	{
-			//		return ((out = a - b) > a);
-			//	};
+				// ran out of data in b, subtract borrow
+				for (auto i = b_data.size(); i != a_data.size() && (borrow != double_block_t{ 0 }); ++i)
+				{
+					borrow = static_cast<double_block_t>(a_data[i]) - borrow;
+					a_data[i] = static_cast<block_t>(borrow);
+					borrow = (borrow >> meta::digits<block_t>()) & double_block_t { 1 };
+				}
 
-			//	auto borrow = false;
+				utils::trim(a);
+			}
 
-			//	// add corresponding blocks. in case of underflow, carry one to the next block.
-			//	for (auto i = std::size_t{ 0 }; i != a.data().size(); ++i)
-			//	{
-			//		auto const& b_block = get_block(b.data(), i);
-			//		auto& a_block = a.data()[i];
+			template<class block_t>
+			void mul_assign(big_uint<block_t>& lhs, big_uint<block_t> const& rhs)
+			{
+				using double_block_t = typename big_uint<block_t>::double_block_type;
 
-			//		// use bitwise or so both sides are evaluated.
-			//		borrow = (checked_sub(a_block, a_block, b_block) | (borrow ? checked_sub(a_block, a_block, block_t{ 1 }) : false));
-			//	}
+				if (lhs.is_zero()) return;
+				if (rhs.is_zero()) { lhs.data().clear(); return; }
 
-			//	utils::trim(a);
-			//}
+				if (rhs == 1u) return;
+				if (lhs == 1u) { lhs = rhs; return; }
 
-			//template<class block_t>
-			//void mul_assign(big_uint<block_t>& lhs, big_uint<block_t> const& rhs)
-			//{
-			//	if (lhs.is_zero()) return;
-			//	if (rhs.is_zero()) { lhs.data().clear(); return; }
+				// note: long multiplication relies on:
+				// double_block_t holding (max<block_t>() * max<block_t>() + 2 * max<block_t>())
+				// which is exactly the case if digits<double_block_t>() == 2 * digits<block_t>();
 
-			//	if (rhs == 1u) return;
-			//	if (lhs == 1u) { lhs = rhs; return; }
+				{
+					auto b = rhs; // TODO: we only need to copy this if lhs and rhs refer to the same object
+					auto a = std::move(lhs);
+					auto& c = lhs;
 
-			//	{
-			//		// rhs copied before moving from lhs, otherwise lhs *= lhs will break
-			//		auto b = rhs; // copy rhs, so we can modify it
-			//		auto a = std::move(lhs); // move out of lhs (so we can use lhs for the result)
-			//		auto& c = lhs; // put the result in lhs
-			//		rsa::utils::die_if(!c.is_zero());
+					auto const& a_data = a.data();
+					auto const& b_data = b.data();
+					auto& c_data = c.data();
 
-			//		while (!b.is_zero())
-			//		{
-			//			if ((b.data()[0] & 1u) != 0u)
-			//				c += a;
+					c_data.resize(a_data.size() + b_data.size());
 
-			//			a <<= 1u;
-			//			b >>= 1u;
-			//		}
-			//	}
-			//}
+					for (auto i = std::size_t{ 0 }; i != a_data.size(); ++i)
+					{
+						auto carry = double_block_t{ 0 };
 
-			//template<class block_t>
-			//void divmod(big_uint<block_t>& quotient, big_uint<block_t>& remainder, big_uint<block_t> dividend, big_uint<block_t> const& divisor)
-			//{
-			//	quotient.data().clear();
-			//	remainder.data().clear();
+						for (auto j = std::size_t{ 0 }; j != b_data.size(); ++j)
+						{
+							carry += static_cast<double_block_t>(a_data[i]) * static_cast<double_block_t>(b_data[j]);
+							carry += c_data[i + j];
+							c_data[i + j] = static_cast<block_t>(carry);
+							carry >>= meta::digits<block_t>();
+						}
 
-			//	rsa::utils::die_if(divisor.is_zero());
-			//	rsa::utils::die_if(dividend < divisor);
-			//	rsa::utils::die_if(dividend == divisor);
+						// c_data[i + b_data.size()] is always zero
+						if (carry)
+							c_data[i + b_data.size()] = static_cast<block_t>(carry);
+					}
 
-			//	auto i = (dividend.get_most_significant_bit() - divisor.get_most_significant_bit());
-			//	auto dt = divisor << i;
+					utils::trim(c);
+				}
+			}
 
-			//	while (dividend >= divisor)
-			//	{
-			//		while (dt > dividend && i != 0u) { --i; dt >>= 1u; }
+			template<class block_t>
+			void div_test(big_uint<block_t>& quotient, big_uint<block_t>& remainder, big_uint<block_t> dividend, big_uint<block_t> divisor)
+			{
+				using double_block_t = typename big_uint<block_t>::double_block_type;
 
-			//		quotient.set_bit(i, true);
-			//		dividend -= dt;
-			//	}
+				quotient.data().clear();
+				remainder.data().clear();
 
-			//	remainder = std::move(dividend);
-			//}
+				rsa::utils::die_if(divisor.is_zero());
+				rsa::utils::die_if(dividend < divisor);
+				rsa::utils::die_if(dividend == divisor);
+				rsa::utils::die_if(dividend.data().size() == 1u && divisor.data().size() == 1u);
 
-			//template<class block_t>
-			//void div_assign(big_uint<block_t>& lhs, big_uint<block_t> const& rhs)
-			//{
-			//	if (rhs.is_zero())
-			//		throw std::invalid_argument("divisor cannot be zero.");
+				auto const get_num_leading_zeros = [] (block_t x)
+				{
+					rsa::utils::die_if(x == 0);
 
-			//	if (lhs < rhs) { lhs.data().clear(); return; }
-			//	if (lhs == rhs) { lhs.data().clear(); lhs.data().push_back(1); return; }
+					auto count = std::size_t{ 0 };
 
-			//	{
-			//		auto _ = big_uint<block_t>();
-			//		divmod(lhs, _, std::move(lhs), (std::addressof(lhs) == std::addressof(rhs)) ? big_uint<block_t>(rhs) : rhs);
-			//	}
-			//}
+					while (x != 0)
+					{
+						++count;
+						x >>= 1;
+					}
 
-			//template<class block_t>
-			//void mod_assign(big_uint<block_t>& lhs, big_uint<block_t> const& rhs)
-			//{
-			//	if (rhs.is_zero())
-			//		throw std::invalid_argument("divisor cannot be zero.");
+					return meta::digits<block_t>() - count;
+				};
 
-			//	if (lhs < rhs) { return; }
-			//	if (lhs == rhs) { lhs.data().clear(); return; }
+				auto const promote = [] (double_block_t b) { return b << meta::digits<block_t>(); };
+				auto const demote = [] (double_block_t b) { return b >> meta::digits<block_t>(); };
+				auto const checked_sub = [] (block_t& out, block_t a, block_t b) {
+					return ((out = a - b) > a);
+				};
 
-			//	{
-			//		auto _ = big_uint<block_t>();
-			//		divmod(_, lhs, std::move(lhs), (std::addressof(lhs) == std::addressof(rhs)) ? big_uint<block_t>(rhs) : rhs);
-			//	}
-			//}
+				{
+					auto& d = divisor;
+					auto& n = remainder;
+					remainder = std::move(dividend);
+					auto& q = quotient;
+
+					q.data().resize(n.data().size() - d.data().size() + 1);
+
+					// single digit divisor
+					if (d.data().size() == 1)
+					{
+						auto k = double_block_t{ 0 };
+						auto const v = d.data()[0];
+
+						for (auto i = n.data().size(); i != 0; --i)
+						{
+							auto const index = i - 1;
+							k = (k << meta::digits<block_t>()) + n.data()[index];
+							q.data()[index] = static_cast<block_t>(k / v);
+							k -= static_cast<double_block_t>(q.data()[index]) * v;
+						}
+
+						n.data().clear();
+
+						if (k != 0)
+							n.data().push_back(static_cast<block_t>(k));
+
+						utils::trim(q);
+
+						return;
+					}
+
+					auto const b = double_block_t{ 1 } << meta::digits<block_t>();
+					auto const ns = n.data().size(); // m
+					auto const ds = d.data().size(); // n
+
+					auto shift = get_num_leading_zeros(d.data().back());
+					d <<= shift;
+					n <<= shift;
+
+					if (n.data().size() == ns)
+						n.data().push_back(block_t{ 0 });
+
+					for (auto i_outer = (ns - ds) + 1; i_outer != 0; --i_outer)
+					{
+						auto const j = i_outer - 1;
+
+						// take the top two blocks of n, divide by top block of d, calc remainder
+						auto v = d.data()[ds - 1];
+						auto n_block = static_cast<double_block_t>(promote(n.data()[j + ds]) | n.data()[j + ds - 1]);
+						auto qhat = static_cast<double_block_t>(n_block / v);
+						auto rhat = static_cast<double_block_t>(n_block - qhat * v);
+
+						// q is too big or (looking at next block) remainder is smaller than what will be taken away
+						while (qhat >= b || (qhat * d.data()[ds - 2]) > (promote(rhat) + n.data()[j + ds - 2]))
+						{
+							qhat -= 1; rhat += v;
+							if (rhat >= b) break;
+						}
+
+						// qhat is now correct, or 1 too high (extremely rare)
+
+						// multiply divisor by qhat and subtract from n
+						auto underflow = false;
+						{
+							auto k = double_block_t{ 0 };
+							for (auto i = std::size_t{ 0 }; i != ds; ++i)
+							{
+								auto const p = static_cast<double_block_t>(qhat * d.data()[i]);
+								auto const t = static_cast<double_block_t>(n.data()[i + j] - k - static_cast<block_t>(p));
+								n.data()[i + j] = static_cast<block_t>(t);
+								k = static_cast<double_block_t>(demote(p) - (static_cast<std::make_signed_t<double_block_t>>(t) >> meta::digits<block_t>()));
+							}
+
+							if (k != 0)
+								underflow |= checked_sub(n.data()[j + ds], n.data()[j + ds], static_cast<block_t>(k));
+						}
+
+						// set quotient
+						q.data()[j] = static_cast<block_t>(qhat);
+
+						// underflow! (qhat was 1 too high)
+						// decrement q and add back one divisor to the remainder
+						if (underflow)
+						{
+							q.data()[j] = q.data()[j] - 1;
+
+							auto k = double_block_t{ 0 };
+							for (auto i = std::size_t{ 0 }; i != ds; ++i)
+							{
+								auto const t = double_block_t{ n.data()[i + j] } +d.data()[i] + k;
+								n.data()[i + j] = static_cast<block_t>(t);
+								k = static_cast<double_block_t>(t >> meta::digits<block_t>());
+							}
+
+							n.data()[j + ds] += static_cast<block_t>(k);
+						}
+					}
+
+					utils::trim(q);
+
+					// shift remainder back
+					utils::trim(n);
+					n >>= shift;
+				}
+			}
+
+			template<class block_t>
+			void div_assign(big_uint<block_t>& lhs, big_uint<block_t> const& rhs)
+			{
+				using double_block_t = typename big_uint<block_t>::double_block_type;
+
+				if (rhs.is_zero())
+					throw std::invalid_argument("divisor cannot be zero.");
+
+				if (lhs < rhs) { lhs.data().clear(); return; }
+				if (lhs == rhs) { lhs.data().clear(); lhs.data().push_back(1); return; }
+
+				if (lhs.data().size() == 1u && rhs.data().size() == 1u)
+				{
+					lhs = static_cast<block_t>(lhs.data()[0] / rhs.data()[0]);
+					return;
+				}
+
+				{
+					auto q = big_uint<block_t>();
+					auto r = big_uint<block_t>();
+					div_test(q, r, lhs, rhs);
+					lhs = std::move(q);
+				}
+			}
+
+			template<class block_t>
+			void mod_assign(big_uint<block_t>& lhs, big_uint<block_t> const& rhs)
+			{
+				using double_block_t = typename big_uint<block_t>::double_block_type;
+
+				if (rhs.is_zero())
+					throw std::invalid_argument("divisor cannot be zero.");
+
+				if (lhs < rhs) { return; }
+				if (lhs == rhs) { lhs.data().clear(); return; }
+
+				if (lhs.data().size() == 1u && rhs.data().size() == 1u)
+				{
+					lhs = static_cast<block_t>(lhs.data()[0] % rhs.data()[0]);
+					utils::trim(lhs);
+					return;
+				}
+
+				{
+					auto q = big_uint<block_t>();
+					auto r = big_uint<block_t>();
+					div_test(q, r, lhs, rhs);
+					lhs = std::move(r);
+				}
+			}
+
+			template<class block_t>
+			void divmod(big_uint<block_t>& quotient, big_uint<block_t>& remainder, big_uint<block_t> const& dividend, big_uint<block_t> const& divisor)
+			{
+				quotient.data().clear();
+				remainder.data().clear();
+
+				if (divisor.is_zero())
+					throw std::invalid_argument("divisor cannot be zero.");
+
+				if (dividend < divisor) { remainder = dividend; return; }
+				if (dividend == divisor) { quotient.data().push_back(1); return; }
+
+				if (dividend.data().size() == 1u && divisor.data().size() == 1u)
+				{
+					quotient = static_cast<block_t>(dividend.data()[0] / divisor.data()[0]);
+					remainder = static_cast<block_t>(dividend.data()[0] % divisor.data()[0]);
+
+					utils::trim(remainder);
+					return;
+				}
+
+				div_test(quotient, remainder, dividend, divisor);
+			}
 
 		} // ops
 

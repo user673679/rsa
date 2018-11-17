@@ -13,8 +13,6 @@ int main(int argc, char** argv)
 
 // TODO (now):
 	
-	// rename and move div_test, replace old div_assign / mod_assign code.
-	
 	// add stuff to utils (db_t(), b_t(), demote -> high_to_low(), promote -> low_to_high(), checked_sub, get_num_leading_zeros)
 	// use the utils stuff
 	
