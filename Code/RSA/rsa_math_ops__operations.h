@@ -3,6 +3,9 @@
 #include "rsa__debug.h"
 #include "rsa_math__utils.h"
 
+#include <algorithm>
+#include <stdexcept>
+
 namespace rsa
 {
 
@@ -53,7 +56,7 @@ namespace rsa
 			template<class block_t>
 			void lshift_assign(big_uint<block_t>& a, typename big_uint<block_t>::bit_index_type n)
 			{
-				using bit_index_t = big_uint<block_t>::bit_index_type;
+				using bit_index_t = typename big_uint<block_t>::bit_index_type;
 				constexpr auto block_digits = utils::digits<block_t>();
 
 				if (n == bit_index_t{ 0 })
@@ -99,7 +102,7 @@ namespace rsa
 			template<class block_t>
 			void rshift_assign(big_uint<block_t>& a, typename big_uint<block_t>::bit_index_type n)
 			{
-				using bit_index_t = big_uint<block_t>::bit_index_type;
+				using bit_index_t = typename big_uint<block_t>::bit_index_type;
 				constexpr auto block_digits = utils::digits<block_t>();
 
 				if (n == bit_index_t{ 0 })
@@ -302,9 +305,7 @@ namespace rsa
 
 				auto const promote = [] (double_block_t b) { return b << utils::digits<block_t>(); };
 				auto const demote = [] (double_block_t b) { return b >> utils::digits<block_t>(); };
-				auto const checked_sub = [] (block_t& out, block_t a, block_t b) {
-					return ((out = a - b) > a);
-				};
+				auto const checked_sub = [] (block_t& out, block_t a, block_t b) { return ((out = a - b) > a); };
 
 				{
 					auto& d = divisor;

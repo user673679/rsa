@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <limits>
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
@@ -110,7 +109,6 @@ namespace rsa
 			big_uint& operator^=(uint_t n);
 
 			big_uint& operator<<=(bit_index_type n);
-
 			big_uint& operator>>=(bit_index_type n);
 
 #pragma endregion
