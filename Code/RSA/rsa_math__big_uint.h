@@ -1,7 +1,7 @@
 #pragma once
 
-#include "rsa__utils.h"
-#include "rsa_math_meta__type_traits.h"
+#include "rsa__debug.h"
+#include "rsa_math__utils.h"
 #include "rsa_math_ops__operations.h"
 
 #include <algorithm>
@@ -41,9 +41,9 @@ namespace rsa
 			using block_index_type = std::size_t;
 			using bit_index_type = std::size_t;
 
-			static_assert(meta::is_uint_v<block_type>, "`block_type` must be an unsigned integer.");
-			static_assert(meta::is_uint_v<double_block_type>, "`double_block_type` must be an unsigned integer.");
-			static_assert(meta::digits<double_block_type>() == 2 * meta::digits<block_type>(), "`double_block_type` have twice as many digits as `block_type`.");
+			static_assert(utils::is_uint_v<block_type>, "`block_type` must be an unsigned integer.");
+			static_assert(utils::is_uint_v<double_block_type>, "`double_block_type` must be an unsigned integer.");
+			static_assert(utils::digits<double_block_type>() == 2 * utils::digits<block_type>(), "`double_block_type` have twice as many digits as `block_type`.");
 
 #pragma region constructors
 
@@ -69,7 +69,7 @@ namespace rsa
 			big_uint& operator=(big_uint const&) = default;
 			big_uint& operator=(big_uint&&) = default;
 
-			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+			template<class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 			big_uint& operator=(uint_t n);
 
 #pragma endregion
@@ -96,17 +96,17 @@ namespace rsa
 
 			big_uint& operator&=(big_uint const& b);
 
-			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+			template<class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 			big_uint& operator&=(uint_t n);
 
 			big_uint& operator|=(big_uint const& b);
 
-			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+			template<class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 			big_uint& operator|=(uint_t n);
 
 			big_uint& operator^=(big_uint const& b);
 
-			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+			template<class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 			big_uint& operator^=(uint_t n);
 
 			big_uint& operator<<=(bit_index_type n);
@@ -119,27 +119,27 @@ namespace rsa
 
 			big_uint& operator+=(big_uint const& b);
 
-			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+			template<class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 			big_uint& operator+=(uint_t n);
 
 			big_uint& operator-=(big_uint const& b);
 
-			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+			template<class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 			big_uint& operator-=(uint_t n);
 
 			big_uint& operator*=(big_uint const& b);
 
-			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+			template<class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 			big_uint& operator*=(uint_t n);
 
 			big_uint& operator/=(big_uint b);
 
-			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+			template<class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 			big_uint& operator/=(uint_t n);
 
 			big_uint& operator%=(big_uint b);
 
-			template<class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+			template<class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 			big_uint& operator%=(uint_t n);
 
 			big_uint& operator++();
@@ -172,18 +172,18 @@ namespace rsa
 		big_uint<block_t>::big_uint(uint_t n):
 			big_uint()
 		{
-			static_assert(meta::is_uint_v<uint_t>, "`uint_t` must be an unsigned integer.");
+			static_assert(utils::is_uint_v<uint_t>, "`uint_t` must be an unsigned integer.");
 
 			// shifting by >= the number digits in the type is undefined behaviour.
-			constexpr bool can_rshift = (meta::digits<block_type>() < meta::digits<uint_t>());
+			constexpr bool can_rshift = (utils::digits<block_type>() < utils::digits<uint_t>());
 
 			while (n != uint_t{ 0 })
 			{
 				// integer promotion, conversion to greater rank, implicit conversion to block_type
-				m_data.push_back(meta::max<block_type>() & n);
+				m_data.push_back(utils::max<block_type>() & n);
 
 				if (can_rshift)
-					n >>= meta::digits<block_type>();
+					n >>= utils::digits<block_type>();
 				else
 					n = uint_t{ 0 };
 			}
@@ -193,14 +193,14 @@ namespace rsa
 		big_uint<block_t>::big_uint(std::initializer_list<block_type> block_values):
 			m_data(block_values)
 		{
-			ops::utils::trim(*this);
+			utils::trim(*this);
 		}
 
 		template<class block_t>
 		big_uint<block_t>::big_uint(block_index_type block_count, block_type block_value):
 			m_data(block_count, block_value)
 		{
-			ops::utils::trim(*this);
+			utils::trim(*this);
 		}
 
 		template<class block_t>
@@ -208,7 +208,7 @@ namespace rsa
 		big_uint<block_t>::big_uint(inputit_t first, inputit_t last):
 			m_data(first, last)
 		{
-			ops::utils::trim(*this);
+			utils::trim(*this);
 		}
 
 #pragma endregion
@@ -219,14 +219,14 @@ namespace rsa
 		template<class uint_t>
 		uint_t big_uint<block_t>::to_uint() const
 		{
-			static_assert(meta::is_uint_v<uint_t>, "`uint_t` must be an unsigned integer.");
+			static_assert(utils::is_uint_v<uint_t>, "`uint_t` must be an unsigned integer.");
 
 			// it's much easier to static_assert / throw here if uint_t may be too small.
 			// checking the actual value would be a lot more work.
 			{
-				static_assert(meta::digits<block_t>() <= meta::digits<uint_t>(), "uint_t may be too small to represent this number.");
+				static_assert(utils::digits<block_t>() <= utils::digits<uint_t>(), "uint_t may be too small to represent this number.");
 
-				if (m_data.size() * meta::digits<block_type>() > meta::digits<uint_t>())
+				if (m_data.size() * utils::digits<block_type>() > utils::digits<uint_t>())
 					throw std::range_error("uint_t may be too small to represent this number.");
 			}
 
@@ -236,7 +236,7 @@ namespace rsa
 				return result;
 
 			for (auto i = std::size_t{ 0 }; i != m_data.size(); ++i)
-				result |= (uint_t{ m_data[i] } << (i * meta::digits<block_type>()));
+				result |= (uint_t{ m_data[i] } << (i * utils::digits<block_type>()));
 
 			return result;
 		}
@@ -250,13 +250,13 @@ namespace rsa
 		template<class block_t>
 		bool big_uint<block_t>::get_bit(bit_index_type i) const
 		{
-			auto block_index = i / meta::digits<block_type>();
+			auto block_index = i / utils::digits<block_type>();
 
 			if (m_data.size() <= block_index)
 				return false;
 
-			auto block_bit = i - (block_index * meta::digits<block_type>());
-			utils::die_if(block_bit >= meta::digits<block_type>());
+			auto block_bit = i - (block_index * utils::digits<block_type>());
+			debug::die_if(block_bit >= utils::digits<block_type>());
 
 			return bool((m_data[block_index] >> block_bit) & 1u);
 		}
@@ -264,13 +264,13 @@ namespace rsa
 		template<class block_t>
 		void big_uint<block_t>::set_bit(bit_index_type i, bool value)
 		{
-			auto block_index = i / meta::digits<block_type>();
+			auto block_index = i / utils::digits<block_type>();
 
 			if (m_data.size() <= block_index)
 				m_data.resize(block_index + 1u);
 
-			auto block_bit = i - (block_index * meta::digits<block_type>());
-			utils::die_if(block_bit >= meta::digits<block_type>());
+			auto block_bit = i - (block_index * utils::digits<block_type>());
+			debug::die_if(block_bit >= utils::digits<block_type>());
 
 			auto mask = block_type(block_type{ 1u } << block_bit);
 			m_data[block_index] |= mask & block_type(block_type{ value } << block_bit);
@@ -279,13 +279,13 @@ namespace rsa
 		template<class block_t>
 		void big_uint<block_t>::flip_bit(bit_index_type i)
 		{
-			auto block_index = i / meta::digits<block_type>();
+			auto block_index = i / utils::digits<block_type>();
 
 			if (m_data.size() <= block_index)
 				m_data.resize(block_index + 1u);
 
-			auto block_bit = i - (block_index * meta::digits<block_type>());
-			utils::die_if(block_bit >= meta::digits<block_type>());
+			auto block_bit = i - (block_index * utils::digits<block_type>());
+			debug::die_if(block_bit >= utils::digits<block_type>());
 
 			auto mask = block_type(block_type{ 1u } << block_bit);
 			m_data[block_index] ^= mask;
@@ -306,7 +306,7 @@ namespace rsa
 				block >>= 1u;
 			}
 
-			return bit_index_type{ count + (m_data.size() - 1u) * meta::digits<block_type>() };
+			return bit_index_type{ count + (m_data.size() - 1u) * utils::digits<block_type>() };
 		}
 
 		template<class block_t>
@@ -504,13 +504,13 @@ namespace rsa
 			return std::equal(a.data().begin(), a.data().end(), b.data().begin(), b.data().end());
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		bool operator==(big_uint<block_t> const& a, uint_t b)
 		{
 			return (a == big_uint<block_t>(b));
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		bool operator==(uint_t a, big_uint<block_t> const& b)
 		{
 			return (big_uint<block_t>(a) == b);
@@ -522,13 +522,13 @@ namespace rsa
 			return !(a == b);
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		bool operator!=(big_uint<block_t> const& a, uint_t b)
 		{
 			return (a != big_uint<block_t>(b));
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		bool operator!=(uint_t a, big_uint<block_t> const& b)
 		{
 			return (big_uint<block_t>(a) != b);
@@ -546,13 +546,13 @@ namespace rsa
 			return std::lexicographical_compare(a.data().rbegin(), a.data().rend(), b.data().rbegin(), b.data().rend());
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		bool operator<(big_uint<block_t> const& a, uint_t b)
 		{
 			return (a < big_uint<block_t>(b));
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		bool operator<(uint_t a, big_uint<block_t> const& b)
 		{
 			return (big_uint<block_t>(a) < b);
@@ -564,13 +564,13 @@ namespace rsa
 			return (b < a);
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		bool operator>(big_uint<block_t> const& a, uint_t b)
 		{
 			return (a > big_uint<block_t>(b));
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		bool operator>(uint_t a, big_uint<block_t> const& b)
 		{
 			return (big_uint<block_t>(a) > b);
@@ -582,13 +582,13 @@ namespace rsa
 			return !(b < a);
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		bool operator<=(big_uint<block_t> const& a, uint_t b)
 		{
 			return (a <= big_uint<block_t>(b));
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		bool operator<=(uint_t a, big_uint<block_t> const& b)
 		{
 			return (big_uint<block_t>(a) <= b);
@@ -600,13 +600,13 @@ namespace rsa
 			return !(a < b);
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		bool operator>=(big_uint<block_t> const& a, uint_t b)
 		{
 			return (a >= big_uint<block_t>(b));
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		bool operator>=(uint_t a, big_uint<block_t> const& b)
 		{
 			return (big_uint<block_t>(a) >= b);
@@ -622,7 +622,7 @@ namespace rsa
 			return (a &= b);
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		big_uint<block_t> operator&(big_uint<block_t> a, uint_t b)
 		{
 			return (a &= big_uint<block_t>(b));
@@ -634,7 +634,7 @@ namespace rsa
 			return (a |= b);
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		big_uint<block_t> operator|(big_uint<block_t> a, uint_t b)
 		{
 			return (a |= big_uint<block_t>(b));
@@ -646,19 +646,19 @@ namespace rsa
 			return (a ^= b);
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		big_uint<block_t> operator^(big_uint<block_t> a, uint_t b)
 		{
 			return (a ^= big_uint<block_t>(b));
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		big_uint<block_t> operator<<(big_uint<block_t> a, uint_t b)
 		{
 			return (a <<= b);
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		big_uint<block_t> operator>>(big_uint<block_t> a, uint_t b)
 		{
 			return (a >>= b);
@@ -668,13 +668,13 @@ namespace rsa
 
 #pragma region math operators
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		big_uint<block_t> operator+(big_uint<block_t> a, uint_t b)
 		{
 			return (a += big_uint<block_t>(b));
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		big_uint<block_t> operator+(uint_t a, big_uint<block_t> const& b)
 		{
 			return (big_uint<block_t>(a) += b);
@@ -686,13 +686,13 @@ namespace rsa
 			return (a += b);
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		big_uint<block_t> operator-(big_uint<block_t> a, uint_t b)
 		{
 			return (a -= big_uint<block_t>(b));
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		big_uint<block_t> operator-(uint_t a, big_uint<block_t> const& b)
 		{
 			return (big_uint<block_t>(a) -= b);
@@ -704,13 +704,13 @@ namespace rsa
 			return (a -= b);
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		big_uint<block_t> operator*(big_uint<block_t> a, uint_t b)
 		{
 			return (a *= big_uint<block_t>(b));
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		big_uint<block_t> operator*(uint_t a, big_uint<block_t> const& b)
 		{
 			return (big_uint<block_t>(a) *= b);
@@ -722,13 +722,13 @@ namespace rsa
 			return (a *= b);
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		big_uint<block_t> operator/(big_uint<block_t> a, uint_t b)
 		{
 			return (a /= big_uint<block_t>(b));
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		big_uint<block_t> operator/(uint_t a, big_uint<block_t> const& b)
 		{
 			return (big_uint<block_t>(a) /= b);
@@ -740,13 +740,13 @@ namespace rsa
 			return (a /= b);
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		big_uint<block_t> operator%(big_uint<block_t> a, uint_t b)
 		{
 			return (a %= big_uint<block_t>(b));
 		}
 
-		template<class block_t, class uint_t, typename = meta::enable_if_uint_t<uint_t>>
+		template<class block_t, class uint_t, typename = utils::enable_if_uint_t<uint_t>>
 		big_uint<block_t> operator%(uint_t a, big_uint<block_t> const& b)
 		{
 			return (big_uint<block_t>(a) %= b);

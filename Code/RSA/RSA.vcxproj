@@ -153,14 +153,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="rsa_math_meta__type_traits.h" />
+    <ClInclude Include="rsa_math__utils.h" />
     <ClInclude Include="rsa_math__big_uint.h" />
     <ClInclude Include="rsa_math_ops__operations.h" />
     <ClInclude Include="rsa_math__primes.h" />
-    <ClInclude Include="rsa__utils.h" />
+    <ClInclude Include="rsa__debug.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="rsa__utils.cpp" />
+    <ClCompile Include="rsa__debug.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

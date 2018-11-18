@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <limits>
 #include <type_traits>
@@ -10,7 +11,10 @@ namespace rsa
 	namespace math
 	{
 
-		namespace meta
+		template<class block_t>
+		class big_uint;
+
+		namespace utils
 		{
 
 			template<class uint_t>
@@ -32,7 +36,26 @@ namespace rsa
 				return std::numeric_limits<t>::max();
 			}
 
-		} // meta
+
+			template<class block_t>
+			bool has_extra_empty_blocks(big_uint<block_t> const& a)
+			{
+				return
+					(std::find_if(a.data().rbegin(), a.data().rend(),
+						[] (block_t b) { return b != block_t{ 0 }; }).base() !=
+						a.data().end());
+			}
+
+			template<class block_t>
+			void trim(big_uint<block_t>& a)
+			{
+				a.data().erase(
+					std::find_if(a.data().rbegin(), a.data().rend(),
+						[] (block_t b) { return b != block_t{ 0 }; }).base(),
+					a.data().end());
+			}
+
+		} // utils
 
 	} // math
 

@@ -1,9 +1,7 @@
 #pragma once
 
-#include "rsa__utils.h"
-#include "rsa_math_meta__type_traits.h"
-
-#include <limits>
+#include "rsa__debug.h"
+#include "rsa_math__utils.h"
 
 namespace rsa
 {
@@ -16,29 +14,6 @@ namespace rsa
 
 		namespace ops
 		{
-
-			namespace utils
-			{
-
-				template<class block_t>
-				bool has_extra_empty_blocks(big_uint<block_t> const& a)
-				{
-					return
-						(std::find_if(a.data().rbegin(), a.data().rend(),
-							[] (block_t b) { return b != block_t{ 0 }; }).base() !=
-							a.data().end());
-				}
-
-				template<class block_t>
-				void trim(big_uint<block_t>& a)
-				{
-					a.data().erase(
-						std::find_if(a.data().rbegin(), a.data().rend(),
-							[] (block_t b) { return b != block_t{ 0 }; }).base(),
-						a.data().end());
-				}
-
-			} // utils
 
 			template<class block_t>
 			void bit_and_assign(big_uint<block_t>& a, big_uint<block_t> const& b)
@@ -79,7 +54,7 @@ namespace rsa
 			void lshift_assign(big_uint<block_t>& a, typename big_uint<block_t>::bit_index_type n)
 			{
 				using bit_index_t = big_uint<block_t>::bit_index_type;
-				constexpr auto block_digits = meta::digits<block_t>();
+				constexpr auto block_digits = utils::digits<block_t>();
 
 				if (n == bit_index_t{ 0 })
 					return;
@@ -99,7 +74,7 @@ namespace rsa
 						return;
 				}
 
-				rsa::utils::die_if(n >= block_digits);
+				debug::die_if(n >= block_digits);
 				const auto carry_shift = block_t(block_digits - n);
 				auto carry = block_t{ 0 };
 
@@ -118,14 +93,14 @@ namespace rsa
 				if (carry != block_t{ 0 })
 					a.data().push_back(carry);
 
-				rsa::utils::die_if(utils::has_extra_empty_blocks(a));
+				debug::die_if(utils::has_extra_empty_blocks(a));
 			}
 
 			template<class block_t>
 			void rshift_assign(big_uint<block_t>& a, typename big_uint<block_t>::bit_index_type n)
 			{
 				using bit_index_t = big_uint<block_t>::bit_index_type;
-				constexpr auto block_digits = meta::digits<block_t>();
+				constexpr auto block_digits = utils::digits<block_t>();
 
 				if (n == bit_index_t{ 0 })
 					return;
@@ -148,7 +123,7 @@ namespace rsa
 						return;
 				}
 
-				rsa::utils::die_if(n >= block_digits);
+				debug::die_if(n >= block_digits);
 				const auto carry_shift = block_t(block_digits - n);
 				auto carry = block_t{ 0 };
 
@@ -194,7 +169,7 @@ namespace rsa
 				{
 					carry += static_cast<double_block_t>(a_data[i]) + static_cast<double_block_t>(b_data[i]);
 					a_data[i] = static_cast<block_t>(carry);
-					carry >>= meta::digits<block_t>();
+					carry >>= utils::digits<block_t>();
 				}
 
 				// ran out of data in a, copy over the rest of b
@@ -205,7 +180,7 @@ namespace rsa
 				{
 					carry += static_cast<double_block_t>(a_data[i]);
 					a_data[i] = static_cast<block_t>(carry);
-					carry >>= meta::digits<block_t>();
+					carry >>= utils::digits<block_t>();
 				}
 
 				// extend a if necessary
@@ -224,7 +199,7 @@ namespace rsa
 				if (b > a)
 					throw std::invalid_argument("cannot subtract larger value from smaller one.");
 
-				rsa::utils::die_if(a.data().size() < b.data().size());
+				debug::die_if(a.data().size() < b.data().size());
 
 				auto& a_data = a.data();
 				auto const& b_data = b.data();
@@ -236,7 +211,7 @@ namespace rsa
 				{
 					borrow = static_cast<double_block_t>(a_data[i]) - static_cast<double_block_t>(b_data[i]) - borrow;
 					a_data[i] = static_cast<block_t>(borrow);
-					borrow = (borrow >> meta::digits<block_t>()) & double_block_t { 1 };
+					borrow = (borrow >> utils::digits<block_t>()) & double_block_t { 1 };
 				}
 
 				// ran out of data in b, subtract borrow
@@ -244,7 +219,7 @@ namespace rsa
 				{
 					borrow = static_cast<double_block_t>(a_data[i]) - borrow;
 					a_data[i] = static_cast<block_t>(borrow);
-					borrow = (borrow >> meta::digits<block_t>()) & double_block_t { 1 };
+					borrow = (borrow >> utils::digits<block_t>()) & double_block_t { 1 };
 				}
 
 				utils::trim(a);
@@ -285,7 +260,7 @@ namespace rsa
 							carry += static_cast<double_block_t>(a_data[i]) * static_cast<double_block_t>(b_data[j]);
 							carry += c_data[i + j];
 							c_data[i + j] = static_cast<block_t>(carry);
-							carry >>= meta::digits<block_t>();
+							carry >>= utils::digits<block_t>();
 						}
 
 						// c_data[i + b_data.size()] is always zero
@@ -298,21 +273,21 @@ namespace rsa
 			}
 
 			template<class block_t>
-			void div_test(big_uint<block_t>& quotient, big_uint<block_t>& remainder, big_uint<block_t> dividend, big_uint<block_t> divisor)
+			void divmod(big_uint<block_t>& quotient, big_uint<block_t>& remainder, big_uint<block_t> dividend, big_uint<block_t> divisor)
 			{
 				using double_block_t = typename big_uint<block_t>::double_block_type;
 
 				quotient.data().clear();
 				remainder.data().clear();
 
-				rsa::utils::die_if(divisor.is_zero());
-				rsa::utils::die_if(dividend < divisor);
-				rsa::utils::die_if(dividend == divisor);
-				rsa::utils::die_if(dividend.data().size() == 1u && divisor.data().size() == 1u);
+				debug::die_if(divisor.is_zero());
+				debug::die_if(dividend < divisor);
+				debug::die_if(dividend == divisor);
+				debug::die_if(dividend.data().size() == 1u && divisor.data().size() == 1u);
 
 				auto const get_num_leading_zeros = [] (block_t x)
 				{
-					rsa::utils::die_if(x == 0);
+					debug::die_if(x == 0);
 
 					auto count = std::size_t{ 0 };
 
@@ -322,11 +297,11 @@ namespace rsa
 						x >>= 1;
 					}
 
-					return meta::digits<block_t>() - count;
+					return utils::digits<block_t>() - count;
 				};
 
-				auto const promote = [] (double_block_t b) { return b << meta::digits<block_t>(); };
-				auto const demote = [] (double_block_t b) { return b >> meta::digits<block_t>(); };
+				auto const promote = [] (double_block_t b) { return b << utils::digits<block_t>(); };
+				auto const demote = [] (double_block_t b) { return b >> utils::digits<block_t>(); };
 				auto const checked_sub = [] (block_t& out, block_t a, block_t b) {
 					return ((out = a - b) > a);
 				};
@@ -348,7 +323,7 @@ namespace rsa
 						for (auto i = n.data().size(); i != 0; --i)
 						{
 							auto const index = i - 1;
-							k = (k << meta::digits<block_t>()) + n.data()[index];
+							k = (k << utils::digits<block_t>()) + n.data()[index];
 							q.data()[index] = static_cast<block_t>(k / v);
 							k -= static_cast<double_block_t>(q.data()[index]) * v;
 						}
@@ -363,7 +338,7 @@ namespace rsa
 						return;
 					}
 
-					auto const b = double_block_t{ 1 } << meta::digits<block_t>();
+					auto const b = double_block_t{ 1 } << utils::digits<block_t>();
 					auto const ns = n.data().size(); // m
 					auto const ds = d.data().size(); // n
 
@@ -402,7 +377,7 @@ namespace rsa
 								auto const p = static_cast<double_block_t>(qhat * d.data()[i]);
 								auto const t = static_cast<double_block_t>(n.data()[i + j] - k - static_cast<block_t>(p));
 								n.data()[i + j] = static_cast<block_t>(t);
-								k = static_cast<double_block_t>(demote(p) - (static_cast<std::make_signed_t<double_block_t>>(t) >> meta::digits<block_t>()));
+								k = static_cast<double_block_t>(demote(p) - (static_cast<std::make_signed_t<double_block_t>>(t) >> utils::digits<block_t>()));
 							}
 
 							if (k != 0)
@@ -421,9 +396,9 @@ namespace rsa
 							auto k = double_block_t{ 0 };
 							for (auto i = std::size_t{ 0 }; i != ds; ++i)
 							{
-								auto const t = double_block_t{ n.data()[i + j] } +d.data()[i] + k;
+								auto const t = double_block_t{ n.data()[i + j] } + d.data()[i] + k;
 								n.data()[i + j] = static_cast<block_t>(t);
-								k = static_cast<double_block_t>(t >> meta::digits<block_t>());
+								k = static_cast<double_block_t>(t >> utils::digits<block_t>());
 							}
 
 							n.data()[j + ds] += static_cast<block_t>(k);
@@ -458,7 +433,7 @@ namespace rsa
 				{
 					auto q = big_uint<block_t>();
 					auto r = big_uint<block_t>();
-					div_test(q, r, lhs, rhs);
+					divmod(q, r, lhs, rhs);
 					lhs = std::move(q);
 				}
 			}
@@ -484,13 +459,13 @@ namespace rsa
 				{
 					auto q = big_uint<block_t>();
 					auto r = big_uint<block_t>();
-					div_test(q, r, lhs, rhs);
+					divmod(q, r, lhs, rhs);
 					lhs = std::move(r);
 				}
 			}
 
 			template<class block_t>
-			void divmod(big_uint<block_t>& quotient, big_uint<block_t>& remainder, big_uint<block_t> const& dividend, big_uint<block_t> const& divisor)
+			void divmod_test(big_uint<block_t>& quotient, big_uint<block_t>& remainder, big_uint<block_t> const& dividend, big_uint<block_t> const& divisor)
 			{
 				quotient.data().clear();
 				remainder.data().clear();
@@ -510,7 +485,7 @@ namespace rsa
 					return;
 				}
 
-				div_test(quotient, remainder, dividend, divisor);
+				divmod(quotient, remainder, dividend, divisor);
 			}
 
 		} // ops

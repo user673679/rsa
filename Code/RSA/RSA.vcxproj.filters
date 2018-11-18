@@ -9,21 +9,21 @@
     <ClInclude Include="rsa_math__big_uint.h">
       <Filter>rsa</Filter>
     </ClInclude>
-    <ClInclude Include="rsa__utils.h">
-      <Filter>rsa</Filter>
-    </ClInclude>
     <ClInclude Include="rsa_math__primes.h">
       <Filter>rsa</Filter>
     </ClInclude>
     <ClInclude Include="rsa_math_ops__operations.h">
       <Filter>rsa</Filter>
     </ClInclude>
-    <ClInclude Include="rsa_math_meta__type_traits.h">
+    <ClInclude Include="rsa_math__utils.h">
+      <Filter>rsa</Filter>
+    </ClInclude>
+    <ClInclude Include="rsa__debug.h">
       <Filter>rsa</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="rsa__utils.cpp">
+    <ClCompile Include="rsa__debug.cpp">
       <Filter>rsa</Filter>
     </ClCompile>
   </ItemGroup>

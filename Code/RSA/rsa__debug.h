@@ -3,12 +3,12 @@
 namespace rsa
 {
 
-	namespace utils
+	namespace debug
 	{
 
 		void die();
 		void die_if(bool condition);
 
-	} // utils
+	} // debug
 
 } // rsa

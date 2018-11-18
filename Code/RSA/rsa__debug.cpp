@@ -1,9 +1,9 @@
-#include "rsa__utils.h"
+#include "rsa__debug.h"
 
 namespace rsa
 {
 
-	namespace utils
+	namespace debug
 	{
 
 		void die()
@@ -17,6 +17,6 @@ namespace rsa
 				die();
 		}
 
-	} // utils
+	} // debug
 
 } // rsa
